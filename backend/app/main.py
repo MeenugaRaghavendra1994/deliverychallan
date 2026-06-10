@@ -151,8 +151,11 @@ def health() -> Dict[str, str]:
 def read_plants() -> List[Dict[str, Any]]:
     client = get_supabase_client()
     if client:
-        response = client.table("plants").select("*").order("created_at", desc=True).execute()
-        return response.data or []
+        try:
+            response = client.table("plants").select("*").order("created_at", desc=True).execute()
+            return response.data or []
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Supabase Fetch Error: {str(e)}")
     return memory_store.list_plants()
 
 
@@ -162,8 +165,16 @@ def create_plant(payload: PlantCreate) -> Dict[str, Any]:
     item["id"] = str(uuid.uuid4())
     client = get_supabase_client()
     if client:
-        response = client.table("plants").insert(item).execute()
-        return response.data[0]
+        try:
+            response = client.table("plants").insert(item).execute()
+            if not response.data:
+                raise HTTPException(
+                    status_code=500, 
+                    detail="No data returned from Supabase. Ensure the 'plants' table exists and RLS policies allow insertion."
+                )
+            return response.data[0]
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Supabase Insert Error: {str(e)}")
     return memory_store.create_plant(item)
 
 
@@ -171,8 +182,11 @@ def create_plant(payload: PlantCreate) -> Dict[str, Any]:
 def read_products() -> List[Dict[str, Any]]:
     client = get_supabase_client()
     if client:
-        response = client.table("products").select("*").order("created_at", desc=True).execute()
-        return response.data or []
+        try:
+            response = client.table("products").select("*").order("created_at", desc=True).execute()
+            return response.data or []
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Supabase Fetch Error: {str(e)}")
     return memory_store.list_products()
 
 
@@ -182,8 +196,13 @@ def create_product(payload: ProductCreate) -> Dict[str, Any]:
     item["id"] = str(uuid.uuid4())
     client = get_supabase_client()
     if client:
-        response = client.table("products").insert(item).execute()
-        return response.data[0]
+        try:
+            response = client.table("products").insert(item).execute()
+            if not response.data:
+                raise HTTPException(status_code=500, detail="No data returned. Check RLS policies on 'products' table.")
+            return response.data[0]
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Supabase Insert Error: {str(e)}")
     return memory_store.create_product(item)
 
 
@@ -191,8 +210,11 @@ def create_product(payload: ProductCreate) -> Dict[str, Any]:
 def read_challans() -> List[Dict[str, Any]]:
     client = get_supabase_client()
     if client:
-        response = client.table("challans").select("*").order("created_at", desc=True).execute()
-        return response.data or []
+        try:
+            response = client.table("challans").select("*").order("created_at", desc=True).execute()
+            return response.data or []
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Supabase Fetch Error: {str(e)}")
     return memory_store.list_challans()
 
 
@@ -204,8 +226,13 @@ def create_challan(payload: ChallanCreate) -> Dict[str, Any]:
     challan_payload["total_amount"] = round(sum(item.quantity * item.rate for item in payload.items), 2)
     client = get_supabase_client()
     if client:
-        response = client.table("challans").insert(challan_payload).execute()
-        return response.data[0]
+        try:
+            response = client.table("challans").insert(challan_payload).execute()
+            if not response.data:
+                raise HTTPException(status_code=500, detail="No data returned. Check RLS policies on 'challans' table.")
+            return response.data[0]
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Supabase Insert Error: {str(e)}")
     return memory_store.create_challan(challan_payload)
 
 

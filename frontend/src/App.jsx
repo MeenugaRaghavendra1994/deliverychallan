@@ -212,7 +212,7 @@ export default function App() {
             product_id: value,
             product_name: selectedProduct?.name || "",
             rate: selectedProduct?.rate ?? row.rate,
-            amount: Number(row.quantity || 0) * Number(selectedProduct?.rate ?? row.rate || 0),
+            amount: Number(row.quantity || 0) * Number((selectedProduct?.rate ?? row.rate) || 0),
           };
         }
         const nextRow = { ...row, [field]: value };
