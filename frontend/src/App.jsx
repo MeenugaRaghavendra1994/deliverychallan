@@ -72,6 +72,9 @@ const styles = `
     font-weight: 600; 
     transition: background 0.2s;
   }
+  .helper-text { font-size: 0.9rem; opacity: 0.8; margin-top: 0.5rem; }
+  .list-row { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0; border-bottom: 1px solid var(--border); }
+  .list-row:last-child { border-bottom: none; }
   button:hover { background: var(--primary-hover); }
   button.secondary { background: white; border: 1px solid var(--primary); color: var(--primary); }
 `;
@@ -278,6 +281,7 @@ export default function App() {
         <article className="card">
           <h2>Plant Master</h2>
           <form onSubmit={handlePlantSubmit} className="stack">
+            {/* Input fields for Plant Form */}
             <input value={plantForm.name} onChange={(event) => setPlantForm({ ...plantForm, name: event.target.value })} placeholder="Plant name" required />
             <input value={plantForm.code} onChange={(event) => setPlantForm({ ...plantForm, code: event.target.value })} placeholder="Plant code" required />
             <input value={plantForm.address} onChange={(event) => setPlantForm({ ...plantForm, address: event.target.value })} placeholder="Address" />
@@ -285,7 +289,7 @@ export default function App() {
             <input value={plantForm.phone} onChange={(event) => setPlantForm({ ...plantForm, phone: event.target.value })} placeholder="Phone" />
             <button type="submit">Save Plant</button>
           </form>
-          <ul className="list">
+          <ul className="stack" style={{ marginTop: '1.5rem' }}> {/* Added stack class and margin for spacing */}
             {plants.map((plant) => (
               <li key={plant.id}>
                 <strong>{plant.name}</strong> <span>({plant.code})</span>
@@ -297,6 +301,7 @@ export default function App() {
         <article className="card">
           <h2>Product Master</h2>
           <form onSubmit={handleProductSubmit} className="stack">
+            {/* Input fields for Product Form */}
             <input value={productForm.name} onChange={(event) => setProductForm({ ...productForm, name: event.target.value })} placeholder="Product name" required />
             <input value={productForm.code} onChange={(event) => setProductForm({ ...productForm, code: event.target.value })} placeholder="Product code" required />
             <input value={productForm.hsn_code} onChange={(event) => setProductForm({ ...productForm, hsn_code: event.target.value })} placeholder="HSN code" />
@@ -305,7 +310,7 @@ export default function App() {
             <input value={productForm.description} onChange={(event) => setProductForm({ ...productForm, description: event.target.value })} placeholder="Description" />
             <button type="submit">Save Product</button>
           </form>
-          <ul className="list">
+          <ul className="stack" style={{ marginTop: '1.5rem' }}> {/* Added stack class and margin for spacing */}
             {products.map((product) => (
               <li key={product.id}>
                 <strong>{product.name}</strong> <span>₹{product.rate}</span>
@@ -318,6 +323,7 @@ export default function App() {
       <section className="card wide-card">
         <h2>Create Delivery Challan</h2>
         <form onSubmit={handleChallanSubmit} className="stack">
+          {/* Challan Header Fields */}
           <div className="row">
             <input value={challanForm.challan_number} onChange={(event) => setChallanForm({ ...challanForm, challan_number: event.target.value })} placeholder="Challan number" required />
             <input type="date" value={challanForm.challan_date} onChange={(event) => setChallanForm({ ...challanForm, challan_date: event.target.value })} required />
@@ -339,6 +345,7 @@ export default function App() {
           </div>
 
           <h3>Items</h3>
+          {/* Challan Items */}
           {itemRows.map((row, index) => (
             <div className="item-row" key={`${row.product_id || "new"}-${index}`}>
               <select value={row.product_id} onChange={(event) => handleItemChange(index, "product_id", event.target.value)} required>
@@ -353,7 +360,7 @@ export default function App() {
             </div>
           ))}
 
-          <div className="row-between">
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1rem' }}> {/* Replaced row-between with inline style for clarity */}
             <button type="button" className="secondary" onClick={addItemRow}>Add item</button>
             <button type="submit">Create challan</button>
           </div>
@@ -362,7 +369,7 @@ export default function App() {
 
       <section className="card wide-card">
         <h2>Recent Challans</h2>
-        <ul className="list">
+        <ul className="stack"> {/* Changed to stack for consistent spacing */}
           {challans.map((challan) => (
             <li key={challan.id} className="list-row">
               <div>
