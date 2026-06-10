@@ -72,11 +72,40 @@ const styles = `
     font-weight: 600; 
     transition: background 0.2s;
   }
+  button:disabled { opacity: 0.6; cursor: not-allowed; }
   .helper-text { font-size: 0.9rem; opacity: 0.8; margin-top: 0.5rem; }
   .list-row { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0; border-bottom: 1px solid var(--border); }
   .list-row:last-child { border-bottom: none; }
   button:hover { background: var(--primary-hover); }
   button.secondary { background: white; border: 1px solid var(--primary); color: var(--primary); }
+
+  .loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    color: white;
+  }
+  .spinner {
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top: 4px solid white;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin-bottom: 10px;
+  }
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
 `;
 
 const API_BASE = "/api";
@@ -123,6 +152,7 @@ export default function App() {
     lr_no: "",
     notes: "",
   });
+  const [isLoading, setIsLoading] = useState(false);
   const [itemRows, setItemRows] = useState([emptyItem()]);
   const [status, setStatus] = useState("Ready to create delivery challans.");
 
@@ -139,40 +169,53 @@ export default function App() {
   };
 
   const loadPlants = async () => {
+    setIsLoading(true);
     try {
       const data = await requestJson("/plants");
       setPlants(data);
     } catch (error) {
       setStatus(error.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const loadProducts = async () => {
+    setIsLoading(true);
     try {
       const data = await requestJson("/products");
       setProducts(data);
     } catch (error) {
       setStatus(error.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const loadChallans = async () => {
+    setIsLoading(true);
     try {
       const data = await requestJson("/challans");
       setChallans(data);
     } catch (error) {
       setStatus(error.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    loadPlants();
-    loadProducts();
-    loadChallans();
+    const fetchData = async () => {
+      await loadPlants();
+      await loadProducts();
+      await loadChallans();
+    };
+    fetchData();
   }, []);
 
   const handlePlantSubmit = async (event) => {
     event.preventDefault();
+    setIsLoading(true);
     try {
       const plant = await requestJson("/plants", {
         method: "POST",
@@ -183,11 +226,14 @@ export default function App() {
       setStatus(`Plant ${plant.name} saved.`);
     } catch (error) {
       setStatus(error.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleProductSubmit = async (event) => {
     event.preventDefault();
+    setIsLoading(true);
     try {
       const product = await requestJson("/products", {
         method: "POST",
@@ -198,6 +244,8 @@ export default function App() {
       setStatus(`Product ${product.name} saved.`);
     } catch (error) {
       setStatus(error.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -228,6 +276,7 @@ export default function App() {
 
   const handleChallanSubmit = async (event) => {
     event.preventDefault();
+    setIsLoading(true);
     try {
       const payload = {
         ...challanForm,
@@ -258,6 +307,8 @@ export default function App() {
       setItemRows([emptyItem()]);
     } catch (error) {
       setStatus(error.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -268,13 +319,22 @@ export default function App() {
   return (
     <div className="app-shell">
       <style>{styles}</style>
+      {isLoading && (
+        <div className="loading-overlay">
+          <div className="spinner"></div>
+          <p>Please wait...</p>
+        </div>
+      )}
       <header className="hero-card">
         <div>
           <p className="eyebrow">Delivery Challan System</p>
           <h1>Create challans and manage plants and products from one place.</h1>
           <p className="helper-text">This UI mirrors the workbook flow while storing master data in the backend and generating PDF challans.</p>
         </div>
-        <div className="status-pill">{status}</div>
+        <div className="status-pill">
+          {isLoading && <span>Loading... </span>}
+          {status}
+        </div>
       </header>
 
       <section className="grid">
@@ -287,7 +347,7 @@ export default function App() {
             <input value={plantForm.address} onChange={(event) => setPlantForm({ ...plantForm, address: event.target.value })} placeholder="Address" />
             <input value={plantForm.contact_person} onChange={(event) => setPlantForm({ ...plantForm, contact_person: event.target.value })} placeholder="Contact person" />
             <input value={plantForm.phone} onChange={(event) => setPlantForm({ ...plantForm, phone: event.target.value })} placeholder="Phone" />
-            <button type="submit">Save Plant</button>
+            <button type="submit" disabled={isLoading}>Save Plant</button>
           </form>
           <ul className="stack" style={{ marginTop: '1.5rem' }}> {/* Added stack class and margin for spacing */}
             {plants.map((plant) => (
@@ -308,7 +368,7 @@ export default function App() {
             <input value={productForm.unit} onChange={(event) => setProductForm({ ...productForm, unit: event.target.value })} placeholder="Unit" />
             <input type="number" value={productForm.rate} onChange={(event) => setProductForm({ ...productForm, rate: event.target.value })} placeholder="Rate" />
             <input value={productForm.description} onChange={(event) => setProductForm({ ...productForm, description: event.target.value })} placeholder="Description" />
-            <button type="submit">Save Product</button>
+            <button type="submit" disabled={isLoading}>Save Product</button>
           </form>
           <ul className="stack" style={{ marginTop: '1.5rem' }}> {/* Added stack class and margin for spacing */}
             {products.map((product) => (
@@ -361,8 +421,8 @@ export default function App() {
           ))}
 
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1rem' }}> {/* Replaced row-between with inline style for clarity */}
-            <button type="button" className="secondary" onClick={addItemRow}>Add item</button>
-            <button type="submit">Create challan</button>
+            <button type="button" className="secondary" onClick={addItemRow} disabled={isLoading}>Add item</button>
+            <button type="submit" disabled={isLoading}>Create challan</button>
           </div>
         </form>
       </section>
@@ -376,7 +436,7 @@ export default function App() {
                 <strong>{challan.challan_number}</strong> <span>{challan.customer_name}</span>
               </div>
               <div>
-                <span>₹{challan.total_amount}</span>
+                <span>₹{challan.total_amount} </span>
                 <button type="button" className="secondary" onClick={() => openPdf(challan.id)}>PDF</button>
               </div>
             </li>
