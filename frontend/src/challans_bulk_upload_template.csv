@@ -1,0 +1,2 @@
+from_plant_code,to_plant_code,sku,item_name,quantity,rate
+PA001,PB002,PX001,Product X,10,150.75
