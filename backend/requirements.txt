@@ -3,4 +3,7 @@ uvicorn[standard]
 supabase
 python-dotenv
 reportlab
+passlib
+bcrypt
 pydantic
+email-validator

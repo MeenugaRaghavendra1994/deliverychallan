@@ -4,20 +4,23 @@ import csv
 import io
 import os
 import uuid
+import re # Added for regex validation
 from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Response, UploadFile, File
+from fastapi import FastAPI, HTTPException, Response, UploadFile, File # Added Depends
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr # Added EmailStr
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from supabase import create_client
+
+import bcrypt # Switched to direct bcrypt usage to avoid Python 3.13 compatibility issues with passlib
 
 load_dotenv()
 
@@ -32,6 +35,91 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# --- User Models ---
+class UserCreate(BaseModel):
+    email: EmailStr
+    password: str
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+class UserOut(BaseModel):
+    id: str
+    email: EmailStr
+    created_at: Optional[str] = None
+
+# --- Utility Functions for Auth ---
+def verify_password(plain_password, hashed_password):
+    try:
+        return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+    except Exception:
+        return False
+
+def get_password_hash(password):
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
+    return hashed.decode('utf-8')
+
+def validate_password_complexity(password: str):
+    if len(password) < 8:
+        raise ValueError("Password must be at least 8 characters long.")
+    if len(password.encode('utf-8')) > 72: # bcrypt limit
+        raise ValueError("Password cannot be longer than 72 bytes (characters).")
+    if not re.search(r"[a-z]", password):
+        raise ValueError("Password must contain at least one lowercase letter.")
+    if not re.search(r"[A-Z]", password):
+        raise ValueError("Password must contain at least one uppercase letter.")
+    if not re.search(r"[0-9]", password):
+        raise ValueError("Password must contain at least one digit.")
+    if not re.search(r"[!@#$%^&*()_+\-=\[\]{};':\"\\|,.<>/?]", password):
+        raise ValueError("Password must contain at least one special character.")
+
+# --- Auth Endpoints ---
+@app.post("/auth/signup", response_model=UserOut)
+async def signup_user(user: UserCreate):
+    client = get_supabase_client()
+    if not client:
+        raise HTTPException(status_code=500, detail="Supabase client not initialized.")
+
+    try:
+        validate_password_complexity(user.password)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    hashed_password = get_password_hash(user.password)
+    new_user_data = {"id": str(uuid.uuid4()), "email": user.email, "hashed_password": hashed_password, "created_at": now_iso()}
+
+    try:
+        response = client.table("users").insert(new_user_data).execute()
+        if not response.data:
+            raise HTTPException(status_code=500, detail="Failed to create user in Supabase.")
+        return UserOut(**response.data[0])
+    except Exception as e:
+        if "duplicate key value violates unique constraint" in str(e):
+            raise HTTPException(status_code=409, detail="Email already registered.")
+        raise HTTPException(status_code=400, detail=f"Supabase Signup Error: {str(e)}")
+
+@app.post("/auth/login")
+async def login_user(user: UserLogin):
+    client = get_supabase_client()
+    if not client:
+        raise HTTPException(status_code=500, detail="Supabase client not initialized.")
+
+    try:
+        response = client.table("users").select("id, email, hashed_password").eq("email", user.email).execute()
+        user_data = (response.data or [None])[0]
+
+        if not user_data or not verify_password(user.password, user_data["hashed_password"]):
+            raise HTTPException(status_code=401, detail="Incorrect email or password.")
+        
+        # For simplicity, just return a success message. In a real app, this would return a JWT.
+        return {"message": "Login successful!", "user_id": user_data["id"]}
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Supabase Login Error: {str(e)}")
 
 
 class PlantCreate(BaseModel):
@@ -356,9 +444,7 @@ def get_next_challan_number() -> Dict[str, str]:
     return {"next_number": f"{prefix}{start_num}"}
 
 
-@app.post("/challans", response_model=ChallanOut)
-def create_challan(payload: ChallanCreate) -> Dict[str, Any]:
-    challan_payload = payload.model_dump()
+def _create_challan_entry(challan_payload: Dict[str, Any]) -> Dict[str, Any]:
     
     # Auto-generate challan number if not provided
     if not challan_payload.get("challan_number"):
@@ -380,9 +466,9 @@ def create_challan(payload: ChallanCreate) -> Dict[str, Any]:
     return memory_store.create_challan(challan_payload)
 
 
-@app.post("/challans", response_model=ChallanOut)
-def create_challan(payload: ChallanCreate) -> Dict[str, Any]:
-    return _create_challan_entry(payload)
+@app.post("/challans", response_model=ChallanOut, tags=["Challans"])
+def create_challan(payload: ChallanCreate) -> Dict[str, Any]: # Changed from ChallanCreate to Dict[str, Any]
+    return _create_challan_entry(payload.model_dump())
 
 
 # Helper to fetch plant by code
@@ -574,7 +660,7 @@ async def bulk_upload_challans(file: UploadFile = File(...)):
         )
         
         try:
-            created_challan = _create_challan_entry(challan_payload)
+            created_challan = _create_challan_entry(challan_payload.model_dump())
             created_challans.append(created_challan)
         except HTTPException as e:
             processing_errors.append(f"Error creating challan for From Plant '{from_plant['name']}' to To Plant '{to_plant['name']}': {e.detail}")

@@ -185,6 +185,14 @@ export default function App() {
   const [challanSearch, setChallanSearch] = useState("");
   const [reportDates, setReportDates] = useState({ start: "", end: "" });
 
+
+  // --- Login/Signup States ---
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [showSignupForm, setShowSignupForm] = useState(false);
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authError, setAuthError] = useState("");
+
   const requestJson = async (path, options = {}) => {
     const response = await fetch(`${API_BASE}${path}`, {
       headers: { "Content-Type": "application/json", ...(options.headers || {}) },
@@ -239,13 +247,16 @@ export default function App() {
   };
 
   useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      await Promise.all([loadPlants(), loadProducts(), loadChallans()]);
-      setIsLoading(false);
-    };
-    fetchData();
-  }, []);
+    // Only load data if logged in
+    if (isLoggedIn) {
+      const fetchData = async () => {
+        setIsLoading(true);
+        await Promise.all([loadPlants(), loadProducts(), loadChallans()]);
+        setIsLoading(false);
+      };
+      fetchData();
+    }
+  }, [isLoggedIn]); // Re-run when login status changes
 
   const handlePlantSubmit = async (event) => {
     event.preventDefault();
@@ -481,6 +492,143 @@ export default function App() {
     window.open(`${API_BASE}/reports/product-wise/csv?${params.toString()}`, "_blank");
   };
 
+  // --- Auth Handlers ---
+  const handleAuthSubmit = async (event) => {
+    event.preventDefault();
+    setIsLoading(true);
+    setAuthError("");
+
+    const endpoint = showSignupForm ? "/auth/signup" : "/auth/login";
+    try {
+      const response = await fetch(`${API_BASE}${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: authEmail, password: authPassword }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        setAuthError(errorData.detail || "Authentication failed.");
+      } else {
+        // Assuming successful login/signup, set isLoggedIn to true
+        setIsLoggedIn(true);
+        setAuthEmail("");
+        setAuthPassword("");
+        setAuthError("");
+        setStatus(showSignupForm ? "Signup successful! Please log in." : "Login successful!");
+      }
+    } catch (error) {
+      setAuthError(error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setStatus("Logged out successfully.");
+  };
+
+  // --- Password Complexity Validation (Frontend) ---
+  const validatePassword = (password) => {
+    const errors = [];
+    if (password.length < 8) {
+      errors.push("Password must be at least 8 characters long.");
+    }
+    if (new TextEncoder().encode(password).length > 72) {
+      errors.push("Password cannot be longer than 72 bytes (characters).");
+    }
+    if (!/[a-z]/.test(password)) {
+      errors.push("Password must contain at least one lowercase letter.");
+    }
+    if (!/[A-Z]/.test(password)) {
+      errors.push("Password must contain at least one uppercase letter.");
+    }
+    if (!/[0-9]/.test(password)) {
+      errors.push("Password must contain at least one digit.");
+    }
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>/?]/.test(password)) {
+      errors.push("Password must contain at least one special character.");
+    }
+    return errors;
+  };
+
+  const passwordValidationErrors = showSignupForm ? validatePassword(authPassword) : [];
+
+
+  if (!isLoggedIn) {
+    return (
+      <div className="app-shell">
+        <style>{styles}</style>
+        {isLoading && (
+          <div className="loading-overlay">
+            <div className="spinner"></div>
+            <p>Please wait...</p>
+          </div>
+        )}
+        <header className="hero-card">
+          <div>
+            <p className="eyebrow">Delivery Challan System</p>
+            <h1>{showSignupForm ? "Sign Up" : "Login"}</h1>
+            <p className="helper-text">
+              {showSignupForm ? "Create an account to get started." : "Please log in to access the system."}
+            </p>
+          </div>
+          <div className="status-pill">
+            {isLoading && <span>Loading... </span>}
+            {authError || status}
+          </div>
+        </header>
+
+        <section className="card wide-card">
+          <form onSubmit={handleAuthSubmit} className="stack">
+            <input
+              type="email"
+              value={authEmail}
+              onChange={(e) => setAuthEmail(e.target.value)}
+              placeholder="Email"
+              required
+            />
+            <input
+              type="password"
+              value={authPassword}
+              onChange={(e) => setAuthPassword(e.target.value)}
+              placeholder="Password"
+              required
+            />
+            {showSignupForm && passwordValidationErrors.length > 0 && (
+              <ul style={{ color: 'red', fontSize: '0.8rem', listStyleType: 'disc', marginLeft: '1.2rem' }}>
+                {passwordValidationErrors.map((error, index) => (
+                  <li key={index}>{error}</li>
+                ))}
+              </ul>
+            )}
+            <button type="submit" disabled={isLoading || (showSignupForm && passwordValidationErrors.length > 0)}>
+              {showSignupForm ? "Sign Up" : "Login"}
+            </button>
+          </form>
+          <p style={{ textAlign: 'center', marginTop: '1rem' }}>
+            {showSignupForm ? (
+              <>
+                Already have an account?{" "}
+                <button type="button" className="secondary" onClick={() => setShowSignupForm(false)}>
+                  Login
+                </button>
+              </>
+            ) : (
+              <>
+                Don't have an account?{" "}
+                <button type="button" className="secondary" onClick={() => setShowSignupForm(true)}>
+                  Sign Up
+                </button>
+              </>
+            )}
+          </p>
+        </section>
+      </div>
+    );
+  }
+
   const filteredChallans = challans.filter(c => 
     c.challan_number?.toLowerCase().includes(challanSearch.toLowerCase()) ||
     c.customer_name?.toLowerCase().includes(challanSearch.toLowerCase())
@@ -498,7 +646,10 @@ export default function App() {
       <header className="hero-card">
         <div>
           <p className="eyebrow">Delivery Challan System</p>
-          <h1>Create challans and manage plants and products from one place.</h1>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h1>Create challans and manage plants and products from one place.</h1>
+            <button className="secondary" onClick={handleLogout} disabled={isLoading}>Logout</button>
+          </div>
           <p className="helper-text">This UI mirrors the workbook flow while storing master data in the backend and generating PDF challans.</p>
         </div>
         <div className="status-pill">

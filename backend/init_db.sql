@@ -51,3 +51,11 @@ create table if not exists challans (
     total_amount numeric(12,2) default 0,
     created_at timestamp with time zone default now()
 );
+
+-- New table for user authentication
+create table if not exists users (
+    id uuid primary key default gen_random_uuid(),
+    email text not null unique,
+    hashed_password text not null,
+    created_at timestamp with time zone default now()
+);
