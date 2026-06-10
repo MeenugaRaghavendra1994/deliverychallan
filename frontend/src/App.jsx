@@ -114,6 +114,10 @@ const emptyPlantForm = {
   name: "",
   code: "",
   address: "",
+  state: "",
+  city: "",
+  pincode: "",
+  gstin: "",
   contact_person: "",
   phone: "",
   status: "Active",
@@ -124,13 +128,14 @@ const emptyProductForm = {
   code: "",
   hsn_code: "",
   unit: "Nos",
-  rate: "",
   description: "",
 };
 
 const emptyItem = () => ({
   product_id: "",
   product_name: "",
+  product_code: "",
+  unit: "",
   quantity: "",
   rate: "",
   amount: 0,
@@ -143,11 +148,22 @@ export default function App() {
   const [plantForm, setPlantForm] = useState(emptyPlantForm);
   const [productForm, setProductForm] = useState(emptyProductForm);
   const [challanForm, setChallanForm] = useState({
-    challan_number: "",
     challan_date: new Date().toISOString().slice(0, 10),
+    from_plant_id: "",
+    from_plant_name: "",
+    from_plant_address: "",
+    from_plant_state: "",
+    from_plant_city: "",
+    from_plant_pincode: "",
+    from_plant_gstin: "",
+    from_plant_branch: "",
     plant_id: "",
     customer_name: "",
     customer_address: "",
+    customer_state: "",
+    customer_city: "",
+    customer_pincode: "",
+    customer_gstin: "",
     vehicle_no: "",
     lr_no: "",
     notes: "",
@@ -155,6 +171,8 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [itemRows, setItemRows] = useState([emptyItem()]);
   const [status, setStatus] = useState("Ready to create delivery challans.");
+  const [selectedFile, setSelectedFile] = useState(null); // New state for bulk upload file
+  const [bulkUploadErrors, setBulkUploadErrors] = useState([]); // New state for bulk upload errors
 
   const requestJson = async (path, options = {}) => {
     const response = await fetch(`${API_BASE}${path}`, {
@@ -163,7 +181,12 @@ export default function App() {
     });
     if (!response.ok) {
       const text = await response.text();
-      throw new Error(text || response.statusText);
+      try {
+        const errorData = JSON.parse(text);
+        throw new Error(errorData.detail.message || errorData.detail || response.statusText);
+      } catch {
+        throw new Error(text || response.statusText);
+      }
     }
     return response.json();
   };
@@ -204,19 +227,10 @@ export default function App() {
     }
   };
 
-  const loadNextChallanNumber = async () => {
-    try {
-      const { next_number } = await requestJson("/challans/next-number");
-      setChallanForm((prev) => ({ ...prev, challan_number: next_number }));
-    } catch (error) {
-      console.error("Failed to fetch next DC number", error);
-    }
-  };
-
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
-      await Promise.all([loadPlants(), loadProducts(), loadChallans(), loadNextChallanNumber()]);
+      await Promise.all([loadPlants(), loadProducts(), loadChallans()]);
       setIsLoading(false);
     };
     fetchData();
@@ -246,7 +260,7 @@ export default function App() {
     try {
       const product = await requestJson("/products", {
         method: "POST",
-        body: JSON.stringify({ ...productForm, rate: Number(productForm.rate || 0) }),
+        body: JSON.stringify(productForm),
       });
       setProducts((current) => [product, ...current]);
       setProductForm(emptyProductForm);
@@ -268,8 +282,10 @@ export default function App() {
             ...row,
             product_id: value,
             product_name: selectedProduct?.name || "",
-            rate: selectedProduct?.rate ?? row.rate,
-            amount: Number(row.quantity || 0) * Number((selectedProduct?.rate ?? row.rate) || 0),
+            product_code: selectedProduct?.code || "",
+            unit: selectedProduct?.unit || "Nos",
+            rate: row.rate,
+            amount: Number(row.quantity || 0) * Number(row.rate || 0),
           };
         }
         const nextRow = { ...row, [field]: value };
@@ -279,6 +295,35 @@ export default function App() {
         return nextRow;
       }),
     );
+  };
+
+  const handleFromPlantChange = (plantId) => {
+    const selectedPlant = plants.find((p) => p.id === plantId);
+    setChallanForm((prev) => ({
+      ...prev,
+      from_plant_id: plantId,
+      from_plant_name: selectedPlant ? selectedPlant.name : "",
+      from_plant_address: selectedPlant ? (selectedPlant.address || "") : "",
+      from_plant_state: selectedPlant ? (selectedPlant.state || "") : "",
+      from_plant_city: selectedPlant ? (selectedPlant.city || "") : "",
+      from_plant_pincode: selectedPlant ? (selectedPlant.pincode || "") : "",
+      from_plant_gstin: selectedPlant ? (selectedPlant.gstin || "") : "",
+      from_plant_branch: selectedPlant ? (selectedPlant.name || "") : "",
+    }));
+  };
+
+  const handleChallanPlantChange = (plantId) => {
+    const selectedPlant = plants.find((p) => p.id === plantId);
+    setChallanForm((prev) => ({
+      ...prev,
+      plant_id: plantId,
+      customer_name: selectedPlant ? selectedPlant.name : "",
+      customer_address: selectedPlant ? (selectedPlant.address || "") : "",
+      customer_state: selectedPlant ? (selectedPlant.state || "") : "",
+      customer_city: selectedPlant ? (selectedPlant.city || "") : "",
+      customer_pincode: selectedPlant ? (selectedPlant.pincode || "") : "",
+      customer_gstin: selectedPlant ? (selectedPlant.gstin || "") : "",
+    }));
   };
 
   const addItemRow = () => setItemRows((current) => [...current, emptyItem()]);
@@ -292,6 +337,8 @@ export default function App() {
         items: itemRows.map((row) => ({
           product_id: row.product_id,
           product_name: row.product_name,
+          product_code: row.product_code,
+          unit: row.unit,
           quantity: Number(row.quantity || 0),
           rate: Number(row.rate || 0),
           amount: Number(row.amount || 0),
@@ -303,13 +350,23 @@ export default function App() {
       });
       setChallans((current) => [challan, ...current]);
       setStatus(`Challan ${challan.challan_number} created.`);
-      await loadNextChallanNumber();
       setChallanForm({
-        challan_number: "",
         challan_date: new Date().toISOString().slice(0, 10),
+        from_plant_id: "",
+        from_plant_name: "",
+        from_plant_address: "",
+        from_plant_state: "",
+        from_plant_city: "",
+        from_plant_pincode: "",
+        from_plant_gstin: "",
+        from_plant_branch: "",
         plant_id: "",
         customer_name: "",
         customer_address: "",
+        customer_state: "",
+        customer_city: "",
+        customer_pincode: "",
+        customer_gstin: "",
         vehicle_no: "",
         lr_no: "",
         notes: "",
@@ -317,6 +374,52 @@ export default function App() {
       setItemRows([emptyItem()]);
     } catch (error) {
       setStatus(error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleFileChange = (event) => {
+    setSelectedFile(event.target.files[0]);
+    setBulkUploadErrors([]); // Clear previous errors
+  };
+
+  const handleBulkUploadSubmit = async (event) => {
+    event.preventDefault();
+    if (!selectedFile) {
+      setBulkUploadErrors(["Please select a file to upload."]);
+      return;
+    }
+
+    setIsLoading(true);
+    setBulkUploadErrors([]);
+    try {
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+
+      const response = await fetch(`${API_BASE}/challans/bulk-upload`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        if (errorData.detail && errorData.detail.errors) {
+          setBulkUploadErrors(errorData.detail.errors);
+        } else {
+          setBulkUploadErrors([errorData.detail || response.statusText]);
+        }
+        setStatus(`Bulk upload failed: ${errorData.detail.message || response.statusText}`);
+      } else {
+        const createdChallans = await response.json();
+        setChallans((current) => [...createdChallans, ...current]);
+        setStatus(`Successfully created ${createdChallans.length} challans from bulk upload.`);
+        setSelectedFile(null); // Clear selected file
+        document.getElementById("bulk-upload-file-input").value = ""; // Clear file input
+      }
+    } catch (error) {
+      setBulkUploadErrors([error.message]);
+      setStatus(`Bulk upload failed: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -355,6 +458,12 @@ export default function App() {
             <input value={plantForm.name} onChange={(event) => setPlantForm({ ...plantForm, name: event.target.value })} placeholder="Plant name" required />
             <input value={plantForm.code} onChange={(event) => setPlantForm({ ...plantForm, code: event.target.value })} placeholder="Plant code" required />
             <input value={plantForm.address} onChange={(event) => setPlantForm({ ...plantForm, address: event.target.value })} placeholder="Address" />
+            <div className="row">
+              <input value={plantForm.city} onChange={(event) => setPlantForm({ ...plantForm, city: event.target.value })} placeholder="City" />
+              <input value={plantForm.state} onChange={(event) => setPlantForm({ ...plantForm, state: event.target.value })} placeholder="State" />
+            </div>
+            <input value={plantForm.pincode} onChange={(event) => setPlantForm({ ...plantForm, pincode: event.target.value })} placeholder="Pincode" />
+            <input value={plantForm.gstin} onChange={(event) => setPlantForm({ ...plantForm, gstin: event.target.value })} placeholder="GSTIN" />
             <input value={plantForm.contact_person} onChange={(event) => setPlantForm({ ...plantForm, contact_person: event.target.value })} placeholder="Contact person" />
             <input value={plantForm.phone} onChange={(event) => setPlantForm({ ...plantForm, phone: event.target.value })} placeholder="Phone" />
             <button type="submit" disabled={isLoading}>Save Plant</button>
@@ -376,14 +485,13 @@ export default function App() {
             <input value={productForm.code} onChange={(event) => setProductForm({ ...productForm, code: event.target.value })} placeholder="Product code" required />
             <input value={productForm.hsn_code} onChange={(event) => setProductForm({ ...productForm, hsn_code: event.target.value })} placeholder="HSN code" />
             <input value={productForm.unit} onChange={(event) => setProductForm({ ...productForm, unit: event.target.value })} placeholder="Unit" />
-            <input type="number" value={productForm.rate} onChange={(event) => setProductForm({ ...productForm, rate: event.target.value })} placeholder="Rate" />
             <input value={productForm.description} onChange={(event) => setProductForm({ ...productForm, description: event.target.value })} placeholder="Description" />
             <button type="submit" disabled={isLoading}>Save Product</button>
           </form>
           <ul className="stack" style={{ marginTop: '1.5rem' }}> {/* Added stack class and margin for spacing */}
             {products.map((product) => (
               <li key={product.id}>
-                <strong>{product.name}</strong> <span>₹{product.rate}</span>
+                <strong>{product.name}</strong> <span>({product.code})</span>
               </li>
             ))}
           </ul>
@@ -395,10 +503,17 @@ export default function App() {
         <form onSubmit={handleChallanSubmit} className="stack">
           {/* Challan Header Fields */}
           <div className="row">
-            <input value={challanForm.challan_number} onChange={(event) => setChallanForm({ ...challanForm, challan_number: event.target.value })} placeholder="Challan number (Auto-generated)" required />
             <input type="date" value={challanForm.challan_date} onChange={(event) => setChallanForm({ ...challanForm, challan_date: event.target.value })} required />
-            <select value={challanForm.plant_id} onChange={(event) => setChallanForm({ ...challanForm, plant_id: event.target.value })} required>
-              <option value="">Select plant</option>
+          </div>
+          <div className="row">
+            <select value={challanForm.from_plant_id} onChange={(event) => handleFromPlantChange(event.target.value)} required>
+              <option value="">Select From Plant</option>
+              {plants.map((plant) => (
+                <option value={plant.id} key={plant.id}>{plant.name}</option>
+              ))}
+            </select>
+            <select value={challanForm.plant_id} onChange={(event) => handleChallanPlantChange(event.target.value)} required>
+              <option value="">Select To Plant</option>
               {plants.map((plant) => (
                 <option value={plant.id} key={plant.id}>{plant.name}</option>
               ))}
@@ -434,6 +549,25 @@ export default function App() {
             <button type="button" className="secondary" onClick={addItemRow} disabled={isLoading}>Add item</button>
             <button type="submit" disabled={isLoading}>Create challan</button>
           </div>
+        </form>
+      </section>
+
+      <section className="card wide-card">
+        <h2>Bulk Upload Challans (CSV)</h2>
+        <form onSubmit={handleBulkUploadSubmit} className="stack">
+          <input type="file" id="bulk-upload-file-input" accept=".csv" onChange={handleFileChange} />
+          <p className="helper-text">Upload a CSV file with columns: `from_plant_code,to_plant_code,sku,item_name,quantity,rate`</p>
+          <button type="submit" disabled={isLoading || !selectedFile}>Upload CSV</button>
+          {bulkUploadErrors.length > 0 && (
+            <div style={{ color: 'red', marginTop: '1rem' }}>
+              <h4>Bulk Upload Errors:</h4>
+              <ul>
+                {bulkUploadErrors.map((error, index) => (
+                  <li key={index}>{error}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </form>
       </section>
 
