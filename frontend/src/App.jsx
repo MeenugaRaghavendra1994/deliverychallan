@@ -470,6 +470,10 @@ export default function App() {
     window.open(`${API_BASE}/challans/${challanId}/pdf`, "_blank", "noopener,noreferrer");
   };
 
+  const downloadTemplate = (name) => {
+    window.open(`${API_BASE}/templates/${name}`, "_blank");
+  };
+
   const downloadReport = () => {
     const params = new URLSearchParams();
     if (reportDates.start) params.append("start_date", reportDates.start);
@@ -533,7 +537,10 @@ export default function App() {
           <div className="stack" style={{ marginTop: '1.5rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
             <p className="eyebrow">Bulk Upload Plants</p>
             <input type="file" accept=".csv" onChange={(e) => setPlantFile(e.target.files[0])} />
-            <button className="secondary" onClick={() => handleBulkUpload(plantFile, "/plants/bulk-upload", setPlants, setPlantErrors, "Plants uploaded")} disabled={isLoading || !plantFile}>Upload CSV</button>
+            <div className="row" style={{ gridTemplateColumns: '1fr 1fr' }}>
+              <button className="secondary" onClick={() => handleBulkUpload(plantFile, "/plants/bulk-upload", setPlants, setPlantErrors, "Plants uploaded")} disabled={isLoading || !plantFile}>Upload CSV</button>
+              <button className="secondary" onClick={() => downloadTemplate("plants")}>Download Template</button>
+            </div>
             {plantErrors.length > 0 && <ul style={{ color: 'red', fontSize: '0.8rem' }}>{plantErrors.map((e, i) => <li key={i}>{e}</li>)}</ul>}
           </div>
 
@@ -554,7 +561,10 @@ export default function App() {
           <div className="stack" style={{ marginTop: '1.5rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
             <p className="eyebrow">Bulk Upload Products</p>
             <input type="file" accept=".csv" onChange={(e) => setProductFile(e.target.files[0])} />
-            <button className="secondary" onClick={() => handleBulkUpload(productFile, "/products/bulk-upload", setProducts, setProductErrors, "Products uploaded")} disabled={isLoading || !productFile}>Upload CSV</button>
+            <div className="row" style={{ gridTemplateColumns: '1fr 1fr' }}>
+              <button className="secondary" onClick={() => handleBulkUpload(productFile, "/products/bulk-upload", setProducts, setProductErrors, "Products uploaded")} disabled={isLoading || !productFile}>Upload CSV</button>
+              <button className="secondary" onClick={() => downloadTemplate("products")}>Download Template</button>
+            </div>
             {productErrors.length > 0 && <ul style={{ color: 'red', fontSize: '0.8rem' }}>{productErrors.map((e, i) => <li key={i}>{e}</li>)}</ul>}
           </div>
 
@@ -623,7 +633,10 @@ export default function App() {
         <form onSubmit={handleBulkUploadSubmit} className="stack">
           <input type="file" id="bulk-upload-file-input" accept=".csv" onChange={handleFileChange} />
           <p className="helper-text">Upload a CSV file with columns: `from_plant_code,to_plant_code,sku,item_name,quantity,rate`</p>
-          <button type="submit" disabled={isLoading || !selectedFile}>Upload CSV</button>
+          <div className="row" style={{ gridTemplateColumns: '1fr 1fr' }}>
+            <button type="submit" disabled={isLoading || !selectedFile}>Upload CSV</button>
+            <button type="button" className="secondary" onClick={() => downloadTemplate("challans")}>Download Template</button>
+          </div>
           {bulkUploadErrors.length > 0 && (
             <div style={{ color: 'red', marginTop: '1rem' }}>
               <h4>Bulk Upload Errors:</h4>

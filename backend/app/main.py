@@ -633,6 +633,24 @@ def export_product_wise_csv(start_date: Optional[str] = None, end_date: Optional
     )
 
 
+@app.get("/templates/{template_name}")
+def download_template(template_name: str):
+    """Provides sample CSV templates for bulk uploads."""
+    templates = {
+        "plants": "name,code,address,state,city,pincode,gstin,contact_person,phone,status\nPlant A,PA001,123 Main St,Karnataka,Bangalore,560001,29ABCDE1234F1Z5,John Doe,9876543210,Active",
+        "products": "name,code,hsn_code,unit,description\nProduct X,PX001,123456,Nos,Description for Product X",
+        "challans": "from_plant_code,to_plant_code,sku,item_name,quantity,rate\nPA001,PB002,PX001,Product X,10,150.75"
+    }
+    if template_name not in templates:
+        raise HTTPException(status_code=404, detail="Template not found")
+    
+    return Response(
+        content=templates[template_name],
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={template_name}_template.csv"}
+    )
+
+
 @app.get("/challans/{challan_id}/pdf")
 def download_challan_pdf(challan_id: str) -> Response:
     client = get_supabase_client()
