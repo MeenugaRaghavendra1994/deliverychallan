@@ -78,6 +78,10 @@ const styles = `
   .list-row:last-child { border-bottom: none; }
   button:hover { background: var(--primary-hover); }
   button.secondary { background: white; border: 1px solid var(--primary); color: var(--primary); }
+  
+  .nav-bar { display: flex; gap: 1rem; margin-bottom: 2rem; background: var(--card); padding: 1rem; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+  .nav-bar button { flex: 1; }
+  .search-input { margin-bottom: 1rem; }
 
   .loading-overlay {
     position: fixed;
@@ -142,6 +146,7 @@ const emptyItem = () => ({
 });
 
 export default function App() {
+  const [activeTab, setActiveTab] = useState("create-challan"); // masters, create-challan, dashboard, reports
   const [plants, setPlants] = useState([]);
   const [products, setProducts] = useState([]);
   const [challans, setChallans] = useState([]);
@@ -177,6 +182,8 @@ export default function App() {
   const [productFile, setProductFile] = useState(null);
   const [plantErrors, setPlantErrors] = useState([]);
   const [productErrors, setProductErrors] = useState([]);
+  const [challanSearch, setChallanSearch] = useState("");
+  const [reportDates, setReportDates] = useState({ start: "", end: "" });
 
   const requestJson = async (path, options = {}) => {
     const response = await fetch(`${API_BASE}${path}`, {
@@ -463,6 +470,18 @@ export default function App() {
     window.open(`${API_BASE}/challans/${challanId}/pdf`, "_blank", "noopener,noreferrer");
   };
 
+  const downloadReport = () => {
+    const params = new URLSearchParams();
+    if (reportDates.start) params.append("start_date", reportDates.start);
+    if (reportDates.end) params.append("end_date", reportDates.end);
+    window.open(`${API_BASE}/reports/product-wise/csv?${params.toString()}`, "_blank");
+  };
+
+  const filteredChallans = challans.filter(c => 
+    c.challan_number?.toLowerCase().includes(challanSearch.toLowerCase()) ||
+    c.customer_name?.toLowerCase().includes(challanSearch.toLowerCase())
+  );
+
   return (
     <div className="app-shell">
       <style>{styles}</style>
@@ -484,6 +503,14 @@ export default function App() {
         </div>
       </header>
 
+      <nav className="nav-bar">
+        <button className={activeTab === "masters" ? "" : "secondary"} onClick={() => setActiveTab("masters")}>Masters</button>
+        <button className={activeTab === "create-challan" ? "" : "secondary"} onClick={() => setActiveTab("create-challan")}>Create Challan</button>
+        <button className={activeTab === "dashboard" ? "" : "secondary"} onClick={() => setActiveTab("dashboard")}>Dashboard</button>
+        <button className={activeTab === "reports" ? "" : "secondary"} onClick={() => setActiveTab("reports")}>Reports</button>
+      </nav>
+
+      {activeTab === "masters" && (
       <section className="grid">
         <article className="card">
           <h2>Plant Master</h2>
@@ -510,13 +537,6 @@ export default function App() {
             {plantErrors.length > 0 && <ul style={{ color: 'red', fontSize: '0.8rem' }}>{plantErrors.map((e, i) => <li key={i}>{e}</li>)}</ul>}
           </div>
 
-          <ul className="stack" style={{ marginTop: '1.5rem' }}> {/* Added stack class and margin for spacing */}
-            {plants.map((plant) => (
-              <li key={plant.id}>
-                <strong>{plant.name}</strong> <span>({plant.code})</span>
-              </li>
-            ))}
-          </ul>
         </article>
 
         <article className="card">
@@ -538,16 +558,12 @@ export default function App() {
             {productErrors.length > 0 && <ul style={{ color: 'red', fontSize: '0.8rem' }}>{productErrors.map((e, i) => <li key={i}>{e}</li>)}</ul>}
           </div>
 
-          <ul className="stack" style={{ marginTop: '1.5rem' }}> {/* Added stack class and margin for spacing */}
-            {products.map((product) => (
-              <li key={product.id}>
-                <strong>{product.name}</strong> <span>({product.code})</span>
-              </li>
-            ))}
-          </ul>
         </article>
       </section>
+      )}
 
+      {activeTab === "create-challan" && (
+        <>
       <section className="card wide-card">
         <h2>Create Delivery Challan</h2>
         <form onSubmit={handleChallanSubmit} className="stack">
@@ -620,11 +636,20 @@ export default function App() {
           )}
         </form>
       </section>
+        </>
+      )}
 
+      {activeTab === "dashboard" && (
       <section className="card wide-card">
-        <h2>Recent Challans</h2>
+        <h2>All Delivery Challans</h2>
+        <input 
+          className="search-input"
+          value={challanSearch} 
+          onChange={(e) => setChallanSearch(e.target.value)} 
+          placeholder="Search by Challan No or Customer..." 
+        />
         <ul className="stack"> {/* Changed to stack for consistent spacing */}
-          {challans.map((challan) => (
+          {filteredChallans.map((challan) => (
             <li key={challan.id} className="list-row">
               <div>
                 <strong>{challan.challan_number}</strong> <span>{challan.customer_name}</span>
@@ -637,6 +662,25 @@ export default function App() {
           ))}
         </ul>
       </section>
+      )}
+
+      {activeTab === "reports" && (
+        <section className="card wide-card">
+          <h2>Reports</h2>
+          <p className="helper-text">Export detailed product-wise transaction data to CSV.</p>
+          <div className="row" style={{ marginTop: '1.5rem' }}>
+            <div>
+              <label className="eyebrow">Start Date</label>
+              <input type="date" value={reportDates.start} onChange={(e) => setReportDates({...reportDates, start: e.target.value})} />
+            </div>
+            <div>
+              <label className="eyebrow">End Date</label>
+              <input type="date" value={reportDates.end} onChange={(e) => setReportDates({...reportDates, end: e.target.value})} />
+            </div>
+          </div>
+          <button style={{ marginTop: '1.5rem' }} onClick={downloadReport}>Export Product-wise CSV</button>
+        </section>
+      )}
     </div>
   );
 }

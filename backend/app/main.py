@@ -589,6 +589,50 @@ async def bulk_upload_challans(file: UploadFile = File(...)):
     return created_challans
 
 
+@app.get("/reports/product-wise/csv")
+def export_product_wise_csv(start_date: Optional[str] = None, end_date: Optional[str] = None):
+    """Exports all challan items in a product-wise CSV format."""
+    client = get_supabase_client()
+    if client:
+        try:
+            query = client.table("challans").select("*")
+            if start_date:
+                query = query.gte("challan_date", start_date)
+            if end_date:
+                query = query.lte("challan_date", end_date)
+            response = query.order("challan_date", desc=True).execute()
+            challans = response.data or []
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Report Error: {str(e)}")
+    else:
+        challans = memory_store.list_challans()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Challan No", "Date", "From Plant", "To Plant", "SKU", "Item Name", "UOM", "Qty", "Rate", "Amount"])
+    
+    for c in challans:
+        for item in c.get("items", []):
+            writer.writerow([
+                c.get("challan_number"),
+                c.get("challan_date"),
+                c.get("from_plant_name"),
+                c.get("customer_name"),
+                item.get("product_code"),
+                item.get("product_name"),
+                item.get("unit"),
+                item.get("quantity"),
+                item.get("rate"),
+                item.get("amount")
+            ])
+            
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=product_wise_challan_report.csv"}
+    )
+
+
 @app.get("/challans/{challan_id}/pdf")
 def download_challan_pdf(challan_id: str) -> Response:
     client = get_supabase_client()
@@ -629,12 +673,11 @@ def build_challan_pdf(challan: Dict[str, Any]) -> bytes:
     # Header
     story.append(Paragraph("DELIVERY CHALLAN", header_style))
     story.append(Paragraph("SCHOOL SHOP PRIVATE LIMITED", header_style))
-    story.append(Paragraph("BANGALORE - 562162", sub_header_style))
     story.append(Paragraph("STOCK TRANSFER NOTE", ParagraphStyle("Note", fontSize=11, leading=13, alignment=1, fontName="Helvetica-Bold", spaceAfter=10)))
 
     # Date and Challan No Row
     date_info = [
-        [Paragraph(f"Date: {challan.get('challan_date')}", table_label_style), "", Paragraph(str(challan.get('challan_number')), header_style)]
+        [Paragraph(f"Date: {challan.get('challan_date')}", table_label_style), "", Paragraph(f"Challan No: {str(challan.get('challan_number'))}", table_label_style)]
     ]
     t_date = Table(date_info, colWidths=[60*mm, 70*mm, 60*mm])
     t_date.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'MIDDLE')]))
@@ -650,7 +693,7 @@ def build_challan_pdf(challan: Dict[str, Any]) -> bytes:
         [Paragraph(f"City: {challan.get('from_plant_city', '')}", table_value_style), "", Paragraph(f"City: {challan.get('customer_city', '')}", table_value_style), ""],
         [Paragraph(f"Pincode: {challan.get('from_plant_pincode', '')}", table_value_style), "", Paragraph(f"Pincode: {challan.get('customer_pincode', '')}", table_value_style), ""],
         [Paragraph(f"GSTIN: {challan.get('from_plant_gstin', '')}", table_value_style), "", Paragraph(f"GSTIN: {challan.get('customer_gstin', '')}", table_value_style), ""],
-        [Paragraph(f"Branch: {challan.get('from_plant_branch', '')}", table_value_style), "", Paragraph(f"Branch Name: {challan.get('customer_name', '')}", table_value_style), ""],
+        [Paragraph(f"Branch Name: {challan.get('from_plant_branch', '')}", table_value_style), "", Paragraph(f"Branch Name: {challan.get('customer_name', '')}", table_value_style), ""],
         [Paragraph(f"Order Ref: {challan.get('notes', '')}", table_value_style), "", Paragraph(f"Docket No: {challan.get('lr_no', '')}", table_value_style), ""]
     ]
     t_addr = Table(addr_data, colWidths=[95*mm, 5*mm, 95*mm, 0*mm])
