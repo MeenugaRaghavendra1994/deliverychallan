@@ -173,6 +173,10 @@ export default function App() {
   const [status, setStatus] = useState("Ready to create delivery challans.");
   const [selectedFile, setSelectedFile] = useState(null); // New state for bulk upload file
   const [bulkUploadErrors, setBulkUploadErrors] = useState([]); // New state for bulk upload errors
+  const [plantFile, setPlantFile] = useState(null);
+  const [productFile, setProductFile] = useState(null);
+  const [plantErrors, setPlantErrors] = useState([]);
+  const [productErrors, setProductErrors] = useState([]);
 
   const requestJson = async (path, options = {}) => {
     const response = await fetch(`${API_BASE}${path}`, {
@@ -379,6 +383,36 @@ export default function App() {
     }
   };
 
+  const handleBulkUpload = async (file, path, setter, errorSetter, successMsg) => {
+    if (!file) return;
+    setIsLoading(true);
+    errorSetter([]);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await fetch(`${API_BASE}${path}`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        const errs = errorData.detail?.errors || [errorData.detail?.message || response.statusText];
+        errorSetter(errs);
+        setStatus("Bulk upload failed.");
+      } else {
+        const data = await response.json();
+        setter((current) => [...data, ...current]);
+        setStatus(`${successMsg}: ${data.length} records added.`);
+      }
+    } catch (error) {
+      errorSetter([error.message]);
+      setStatus("Upload error.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleFileChange = (event) => {
     setSelectedFile(event.target.files[0]);
     setBulkUploadErrors([]); // Clear previous errors
@@ -468,6 +502,14 @@ export default function App() {
             <input value={plantForm.phone} onChange={(event) => setPlantForm({ ...plantForm, phone: event.target.value })} placeholder="Phone" />
             <button type="submit" disabled={isLoading}>Save Plant</button>
           </form>
+          
+          <div className="stack" style={{ marginTop: '1.5rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
+            <p className="eyebrow">Bulk Upload Plants</p>
+            <input type="file" accept=".csv" onChange={(e) => setPlantFile(e.target.files[0])} />
+            <button className="secondary" onClick={() => handleBulkUpload(plantFile, "/plants/bulk-upload", setPlants, setPlantErrors, "Plants uploaded")} disabled={isLoading || !plantFile}>Upload CSV</button>
+            {plantErrors.length > 0 && <ul style={{ color: 'red', fontSize: '0.8rem' }}>{plantErrors.map((e, i) => <li key={i}>{e}</li>)}</ul>}
+          </div>
+
           <ul className="stack" style={{ marginTop: '1.5rem' }}> {/* Added stack class and margin for spacing */}
             {plants.map((plant) => (
               <li key={plant.id}>
@@ -488,6 +530,14 @@ export default function App() {
             <input value={productForm.description} onChange={(event) => setProductForm({ ...productForm, description: event.target.value })} placeholder="Description" />
             <button type="submit" disabled={isLoading}>Save Product</button>
           </form>
+
+          <div className="stack" style={{ marginTop: '1.5rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
+            <p className="eyebrow">Bulk Upload Products</p>
+            <input type="file" accept=".csv" onChange={(e) => setProductFile(e.target.files[0])} />
+            <button className="secondary" onClick={() => handleBulkUpload(productFile, "/products/bulk-upload", setProducts, setProductErrors, "Products uploaded")} disabled={isLoading || !productFile}>Upload CSV</button>
+            {productErrors.length > 0 && <ul style={{ color: 'red', fontSize: '0.8rem' }}>{productErrors.map((e, i) => <li key={i}>{e}</li>)}</ul>}
+          </div>
+
           <ul className="stack" style={{ marginTop: '1.5rem' }}> {/* Added stack class and margin for spacing */}
             {products.map((product) => (
               <li key={product.id}>

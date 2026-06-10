@@ -1,13 +1,15 @@
 from __future__ import annotations
 
+import csv
 import io
 import os
 import uuid
+from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import FastAPI, HTTPException, Response, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from reportlab.lib import colors
@@ -195,6 +197,55 @@ def create_plant(payload: PlantCreate) -> Dict[str, Any]:
     return memory_store.create_plant(item)
 
 
+@app.post("/plants/bulk-upload", response_model=List[PlantOut])
+async def bulk_upload_plants(file: UploadFile = File(...)):
+    if not file.filename.endswith(".csv"):
+        raise HTTPException(status_code=400, detail="Only CSV files are supported.")
+
+    contents = await file.read()
+    csv_reader = csv.DictReader(io.StringIO(contents.decode('utf-8')))
+    
+    plants_to_insert = []
+    errors = []
+    
+    for idx, row in enumerate(csv_reader, start=2):
+        try:
+            # Basic validation
+            if not row.get("name") or not row.get("code"):
+                errors.append(f"Row {idx}: Name and Code are required.")
+                continue
+                
+            plant = {
+                "id": str(uuid.uuid4()),
+                "name": row.get("name").strip(),
+                "code": row.get("code").strip(),
+                "address": row.get("address", "").strip(),
+                "state": row.get("state", "").strip(),
+                "city": row.get("city", "").strip(),
+                "pincode": row.get("pincode", "").strip(),
+                "gstin": row.get("gstin", "").strip(),
+                "contact_person": row.get("contact_person", "").strip(),
+                "phone": row.get("phone", "").strip(),
+                "status": row.get("status", "Active").strip() or "Active",
+                "created_at": now_iso()
+            }
+            plants_to_insert.append(plant)
+        except Exception as e:
+            errors.append(f"Row {idx}: {str(e)}")
+
+    if errors:
+        raise HTTPException(status_code=400, detail={"message": "CSV Validation Errors", "errors": errors})
+
+    client = get_supabase_client()
+    if client and plants_to_insert:
+        response = client.table("plants").insert(plants_to_insert).execute()
+        return response.data
+    elif not client:
+        for p in plants_to_insert: memory_store.create_plant(p)
+        return plants_to_insert
+    return []
+
+
 @app.get("/products", response_model=List[ProductOut])
 def read_products() -> List[Dict[str, Any]]:
     client = get_supabase_client()
@@ -221,6 +272,49 @@ def create_product(payload: ProductCreate) -> Dict[str, Any]:
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Supabase Insert Error: {str(e)}")
     return memory_store.create_product(item)
+
+
+@app.post("/products/bulk-upload", response_model=List[ProductOut])
+async def bulk_upload_products(file: UploadFile = File(...)):
+    if not file.filename.endswith(".csv"):
+        raise HTTPException(status_code=400, detail="Only CSV files are supported.")
+
+    contents = await file.read()
+    csv_reader = csv.DictReader(io.StringIO(contents.decode('utf-8')))
+    
+    products_to_insert = []
+    errors = []
+    
+    for idx, row in enumerate(csv_reader, start=2):
+        try:
+            if not row.get("name") or not row.get("code"):
+                errors.append(f"Row {idx}: Name and Code are required.")
+                continue
+                
+            product = {
+                "id": str(uuid.uuid4()),
+                "name": row.get("name").strip(),
+                "code": row.get("code").strip(),
+                "hsn_code": row.get("hsn_code", "").strip(),
+                "unit": row.get("unit", "Nos").strip() or "Nos",
+                "description": row.get("description", "").strip(),
+                "created_at": now_iso()
+            }
+            products_to_insert.append(product)
+        except Exception as e:
+            errors.append(f"Row {idx}: {str(e)}")
+
+    if errors:
+        raise HTTPException(status_code=400, detail={"message": "CSV Validation Errors", "errors": errors})
+
+    client = get_supabase_client()
+    if client and products_to_insert:
+        response = client.table("products").insert(products_to_insert).execute()
+        return response.data
+    elif not client:
+        for p in products_to_insert: memory_store.create_product(p)
+        return products_to_insert
+    return []
 
 
 @app.get("/challans", response_model=List[ChallanOut])
