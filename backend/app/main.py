@@ -69,7 +69,7 @@ class ChallanItem(BaseModel):
 
 
 class ChallanCreate(BaseModel):
-    challan_number: str
+    challan_number: Optional[str] = None
     challan_date: str
     plant_id: str
     customer_name: str
@@ -218,9 +218,42 @@ def read_challans() -> List[Dict[str, Any]]:
     return memory_store.list_challans()
 
 
+@app.get("/challans/next-number")
+def get_next_challan_number() -> Dict[str, str]:
+    """Calculates the next DC number based on SSPL prefix and starting sequence 1010767."""
+    prefix = "SSPL"
+    start_num = 1010767
+    client = get_supabase_client()
+    
+    if client:
+        try:
+            # Fetch existing numbers to find the highest one
+            response = client.table("challans").select("challan_number").ilike("challan_number", f"{prefix}%").execute()
+            if response.data:
+                numeric_values = []
+                for row in response.data:
+                    num_str = row["challan_number"][len(prefix):]
+                    if num_str.isdigit():
+                        numeric_values.append(int(num_str))
+                
+                if numeric_values:
+                    next_val = max(max(numeric_values) + 1, start_num)
+                    return {"next_number": f"{prefix}{next_val}"}
+        except Exception:
+            pass
+            
+    return {"next_number": f"{prefix}{start_num}"}
+
+
 @app.post("/challans", response_model=ChallanOut)
 def create_challan(payload: ChallanCreate) -> Dict[str, Any]:
     challan_payload = payload.model_dump()
+    
+    # Auto-generate challan number if not provided
+    if not challan_payload.get("challan_number"):
+        next_num_data = get_next_challan_number()
+        challan_payload["challan_number"] = next_num_data["next_number"]
+
     challan_payload["id"] = str(uuid.uuid4())
     challan_payload["created_at"] = now_iso()
     challan_payload["total_amount"] = round(sum(item.quantity * item.rate for item in payload.items), 2)

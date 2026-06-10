@@ -204,11 +204,20 @@ export default function App() {
     }
   };
 
+  const loadNextChallanNumber = async () => {
+    try {
+      const { next_number } = await requestJson("/challans/next-number");
+      setChallanForm((prev) => ({ ...prev, challan_number: next_number }));
+    } catch (error) {
+      console.error("Failed to fetch next DC number", error);
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
-      await loadPlants();
-      await loadProducts();
-      await loadChallans();
+      setIsLoading(true);
+      await Promise.all([loadPlants(), loadProducts(), loadChallans(), loadNextChallanNumber()]);
+      setIsLoading(false);
     };
     fetchData();
   }, []);
@@ -294,6 +303,7 @@ export default function App() {
       });
       setChallans((current) => [challan, ...current]);
       setStatus(`Challan ${challan.challan_number} created.`);
+      await loadNextChallanNumber();
       setChallanForm({
         challan_number: "",
         challan_date: new Date().toISOString().slice(0, 10),
@@ -385,7 +395,7 @@ export default function App() {
         <form onSubmit={handleChallanSubmit} className="stack">
           {/* Challan Header Fields */}
           <div className="row">
-            <input value={challanForm.challan_number} onChange={(event) => setChallanForm({ ...challanForm, challan_number: event.target.value })} placeholder="Challan number" required />
+            <input value={challanForm.challan_number} onChange={(event) => setChallanForm({ ...challanForm, challan_number: event.target.value })} placeholder="Challan number (Auto-generated)" required />
             <input type="date" value={challanForm.challan_date} onChange={(event) => setChallanForm({ ...challanForm, challan_date: event.target.value })} required />
             <select value={challanForm.plant_id} onChange={(event) => setChallanForm({ ...challanForm, plant_id: event.target.value })} required>
               <option value="">Select plant</option>
