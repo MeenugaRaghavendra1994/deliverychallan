@@ -453,7 +453,7 @@ def _create_challan_entry(challan_payload: Dict[str, Any]) -> Dict[str, Any]:
 
     challan_payload["id"] = str(uuid.uuid4())
     challan_payload["created_at"] = now_iso()
-    challan_payload["total_amount"] = round(sum(item.quantity * item.rate for item in payload.items), 2)
+    challan_payload["total_amount"] = round(sum(item["quantity"] * item["rate"] for item in challan_payload.get("items", [])), 2)
     client = get_supabase_client()
     if client:
         try:
