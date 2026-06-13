@@ -1184,3 +1184,16 @@ def build_challan_pdf(challan: Dict[str, Any]) -> bytes:
 
 # Include the router with /api prefix only to avoid ambiguous routing
 app.include_router(router, tags=["API"])
+
+@app.on_event("startup")
+async def startup_event():
+    # Log presence of environment variables (do not log the actual keys)
+    logger.info(f"Startup: SUPABASE_URL set: {bool(SUPABASE_URL)}, Service role key present: {bool(SUPABASE_SERVICE_ROLE_KEY)}, Anon key present: {bool(SUPABASE_KEY)}")
+    client = get_supabase_client()
+    if client:
+        try:
+            # Perform a lightweight check to surface connection errors in deployment logs
+            client.table("users").select("id").limit(1).execute()
+            logger.info("Startup DB check: Supabase connection successful.")
+        except Exception as e:
+            logger.error(f"Startup DB check failed: {e}")
