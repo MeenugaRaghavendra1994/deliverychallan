@@ -45,9 +45,10 @@ create table if not exists challans (
     from_plant_gstin text,
     from_plant_branch text,
     vehicle_no text,
-    lr_no text,
+    order_ref text,
+    docket_no text,
+    reason_for_dc text,
     items jsonb not null default '[]'::jsonb,
-    notes text,
     total_amount numeric(12,2) default 0,
     created_at timestamp with time zone default now()
 );

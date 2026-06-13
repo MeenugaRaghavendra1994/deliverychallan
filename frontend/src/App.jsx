@@ -170,8 +170,9 @@ export default function App() {
     customer_pincode: "",
     customer_gstin: "",
     vehicle_no: "",
-    lr_no: "",
-    notes: "",
+    order_ref: "",
+    docket_no: "",
+    reason_for_dc: "",
   });
   const [isLoading, setIsLoading] = useState(false);
   const [itemRows, setItemRows] = useState([emptyItem()]);
@@ -390,8 +391,9 @@ export default function App() {
         customer_pincode: "",
         customer_gstin: "",
         vehicle_no: "",
-        lr_no: "",
-        notes: "",
+        order_ref: "",
+        docket_no: "",
+        reason_for_dc: "",
       });
       setItemRows([emptyItem()]);
     } catch (error) {
@@ -752,8 +754,9 @@ export default function App() {
             <input value={challanForm.vehicle_no} onChange={(event) => setChallanForm({ ...challanForm, vehicle_no: event.target.value })} placeholder="Vehicle no" />
           </div>
           <div className="row">
-            <input value={challanForm.lr_no} onChange={(event) => setChallanForm({ ...challanForm, lr_no: event.target.value })} placeholder="LR no" />
-            <input value={challanForm.notes} onChange={(event) => setChallanForm({ ...challanForm, notes: event.target.value })} placeholder="Notes" />
+            <input value={challanForm.order_ref} onChange={(event) => setChallanForm({ ...challanForm, order_ref: event.target.value })} placeholder="Order Ref" />
+            <input value={challanForm.docket_no} onChange={(event) => setChallanForm({ ...challanForm, docket_no: event.target.value })} placeholder="Docket No" />
+            <input value={challanForm.reason_for_dc} onChange={(event) => setChallanForm({ ...challanForm, reason_for_dc: event.target.value })} placeholder="Reason for DC" />
           </div>
 
           <h3>Items</h3>
@@ -783,7 +786,7 @@ export default function App() {
         <h2>Bulk Upload Challans (CSV)</h2>
         <form onSubmit={handleBulkUploadSubmit} className="stack">
           <input type="file" id="bulk-upload-file-input" accept=".csv" onChange={handleFileChange} />
-          <p className="helper-text">Upload a CSV file with columns: `from_plant_code,to_plant_code,sku,item_name,quantity,rate`</p>
+          <p className="helper-text">Upload a CSV file with columns: `from_plant_code,to_plant_code,sku,item_name,quantity,rate,order_ref,docket_no,reason_for_dc`</p>
           <div className="row" style={{ gridTemplateColumns: '1fr 1fr' }}>
             <button type="submit" disabled={isLoading || !selectedFile}>Upload CSV</button>
             <button type="button" className="secondary" onClick={() => downloadTemplate("challans")}>Download Template</button>
