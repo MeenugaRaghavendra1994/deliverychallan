@@ -406,7 +406,7 @@ def build_payload(record: Dict[str, Any]) -> Dict[str, Any]:
     return payload
 
 
-@router.get("/health")
+@router.get("/health", tags=["System"])
 def health():
     client = get_supabase_client()
     db_status = "Not Initialized"
@@ -1192,18 +1192,24 @@ app.include_router(router, prefix="/api", tags=["API"])
 
 @app.on_event("startup")
 async def startup_event():
-    logger.info("Starting application startup event...")
+    logger.info("--- Vercel Backend Startup ---")
     # Log presence of environment variables (do not log the actual keys)
-    logger.info(f"Startup: SUPABASE_URL set: {bool(SUPABASE_URL)}, Service role key present: {bool(SUPABASE_SERVICE_ROLE_KEY)}, Anon key present: {bool(SUPABASE_KEY)}")
+    logger.info(f"ENV CHECK: SUPABASE_URL: {'FOUND' if SUPABASE_URL else 'MISSING'}")
+    logger.info(f"ENV CHECK: SUPABASE_SERVICE_ROLE_KEY: {'FOUND' if SUPABASE_SERVICE_ROLE_KEY else 'MISSING'}")
+    logger.info(f"ENV CHECK: SUPABASE_KEY (Anon): {'FOUND' if SUPABASE_KEY else 'MISSING'}")
+    
     client = get_supabase_client()
     if client:
-        logger.info("Supabase client successfully obtained. Attempting database connection check...")
+        logger.info("Supabase Client: Initialized successfully.")
         try:
             # Perform a lightweight check to surface connection errors in deployment logs
             client.table("users").select("id").limit(1).execute()
-            logger.info("Startup DB check: Supabase connection successful.")
+            logger.info("Database Connection: SUCCESS - Able to query 'users' table.")
         except Exception as e:
-            logger.error(f"Startup DB check failed: {e}")
+            logger.error(f"Database Connection: FAILED - {str(e)}")
+    else:
+        logger.error("Supabase Client: FAILED - Missing URL or API Key. Check Vercel Environment Variables.")
+    logger.info("--- Startup Event Complete ---")
     else:
         logger.error("Startup DB check: Supabase client could not be initialized. Please check environment variables (SUPABASE_URL, SUPABASE_KEY, SUPABASE_SERVICE_ROLE_KEY).")
     logger.info("Application startup event finished.")
