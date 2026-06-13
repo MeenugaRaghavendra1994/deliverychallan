@@ -201,6 +201,8 @@ export default function App() {
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [authError, setAuthError] = useState("");
+  const [loggedInUserEmail, setLoggedInUserEmail] = useState(""); // New state
+  const [loginTime, setLoginTime] = useState(""); // New state
 
   const requestJson = async (path, options = {}) => {
     const response = await fetch(`${API_BASE}${path}`, {
@@ -428,7 +430,8 @@ export default function App() {
           quantity: Number(row.quantity || 0),
           rate: Number(row.rate || 0),
           amount: Number(row.amount || 0),
-        })),
+        })), // Auto-populate created_by
+        created_by: loggedInUserEmail,
       };
       const challan = await requestJson("/challans", {
         method: "POST",
@@ -457,6 +460,8 @@ export default function App() {
         order_ref: "",
         docket_no: "",
         reason_for_dc: "",
+        created_by: "",
+
       });
       setItemRows([emptyItem()]);
     } catch (error) {
@@ -582,6 +587,8 @@ export default function App() {
         setAuthError("");
         setStatus(showSignupForm ? "Signup successful! Please log in." : "Login successful!");
       }
+      setLoggedInUserEmail(authEmail); // Set logged-in user email
+      setLoginTime(new Date().toLocaleString()); // Set login time
     } catch (error) {
       setAuthError(error.message);
     } finally {
@@ -591,6 +598,8 @@ export default function App() {
 
   const handleLogout = () => {
     setIsLoggedIn(false);
+    setLoggedInUserEmail("");
+    setLoginTime("");
     setStatus("Logged out successfully.");
   };
 
@@ -716,6 +725,16 @@ export default function App() {
             <button className="secondary" onClick={handleLogout} disabled={isLoading}>Logout</button>
           </div>
           <p className="helper-text">This UI mirrors the workbook flow while storing master data in the backend and generating PDF challans.</p>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          {loggedInUserEmail && (
+            <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>
+              Logged in as: {loggedInUserEmail}
+              <br />
+              Login Time: {loginTime}
+            </p>
+          )}
+          <button className="secondary" onClick={handleLogout} disabled={isLoading}>Logout</button>
         </div>
         <div className="status-pill">
           {isLoading && <span>Loading... </span>}

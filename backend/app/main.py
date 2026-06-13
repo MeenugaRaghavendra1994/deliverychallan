@@ -190,12 +190,14 @@ class ChallanCreate(BaseModel):
     docket_no: Optional[str] = None
     reason_for_dc: Optional[str] = None
     items: List[ChallanItem]
+    created_by: Optional[str] = None # New field
 
 
 class ChallanOut(ChallanCreate):
     id: str
     total_amount: float
     created_at: Optional[str] = None
+    created_by: Optional[str] = None # New field
 
 
 class InMemoryStore:
@@ -517,6 +519,7 @@ def _create_challan_entry(challan_payload: Dict[str, Any]) -> Dict[str, Any]:
     challan_payload["id"] = str(uuid.uuid4())
     challan_payload["created_at"] = now_iso()
     challan_payload["total_amount"] = round(sum(item["quantity"] * item["rate"] for item in challan_payload.get("items", [])), 2)
+
     client = get_supabase_client()
     if client:
         try:
@@ -796,8 +799,8 @@ def export_product_wise_csv(start_date: Optional[str] = None, end_date: Optional
         challans = memory_store.list_challans()
 
     output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(["Challan No", "Date", "From Plant", "To Plant", "SKU", "Item Name", "UOM", "Qty", "Rate", "Amount", "Order Ref", "Docket No", "Reason for DC"])
+    writer = csv.writer(output) # New field
+    writer.writerow(["Challan No", "Date", "From Plant", "To Plant", "SKU", "Item Name", "UOM", "Qty", "Rate", "Amount", "Order Ref", "Docket No", "Reason for DC", "Created By"])
     
     for c in challans:
         for item in c.get("items", []):
@@ -814,7 +817,8 @@ def export_product_wise_csv(start_date: Optional[str] = None, end_date: Optional
                 item.get("amount"),
                 c.get("order_ref"),
                 c.get("docket_no"),
-                c.get("reason_for_dc")
+                c.get("reason_for_dc"),
+                c.get("created_by") # New field
             ])
             
     return Response(
@@ -1001,5 +1005,6 @@ def build_challan_pdf(challan: Dict[str, Any]) -> bytes:
     story.append(Spacer(1, 15 * mm))
     story.append(Paragraph("Authorised Signatory", ParagraphStyle("Sign", fontSize=10, alignment=2, fontName="Helvetica-Bold")))
 
+    story.append(Paragraph(f"Created By: {challan.get('created_by', 'N/A')}", table_value_style))
     doc.build(story)
     return buffer.getvalue()

@@ -50,7 +50,8 @@ create table if not exists challans (
     reason_for_dc text,
     items jsonb not null default '[]'::jsonb,
     total_amount numeric(12,2) default 0,
-    created_at timestamp with time zone default now()
+    created_at timestamp with time zone default now(),
+    created_by TEXT -- New column
 );
 
 -- New table for user authentication
