@@ -1136,7 +1136,6 @@ def build_challan_pdf(challan: Dict[str, Any]) -> bytes:
     return buffer.getvalue()
 
 
-# Include the router with /api prefix
-app.include_router(router, prefix="/api")
-# Also include the router without a prefix, in case Vercel's rewrite strips it.
+# Include the router with /api prefix AND as root to catch all routing variations
+app.include_router(router, prefix="/api", tags=["API"])
 app.include_router(router)
