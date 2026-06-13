@@ -1183,6 +1183,5 @@ def build_challan_pdf(challan: Dict[str, Any]) -> bytes:
     return buffer.getvalue()
 
 
-# Include the router with /api prefix AND as root to catch all routing variations
+# Include the router with /api prefix only to avoid ambiguous routing
 app.include_router(router, prefix="/api", tags=["API"])
-app.include_router(router)
