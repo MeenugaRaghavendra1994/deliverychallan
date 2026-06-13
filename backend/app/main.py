@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import io
 import os
+import logging
 import uuid
 import re # Added for regex validation
 from collections import defaultdict
@@ -21,6 +22,10 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, Tabl
 from supabase import create_client
 
 import bcrypt # Switched to direct bcrypt usage to avoid Python 3.13 compatibility issues with passlib
+
+# Configure logging for Vercel
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -374,8 +379,16 @@ memory_store = InMemoryStore()
 
 def get_supabase_client():
     # Use Service Role Key for backend administrative access to bypass RLS policies
+    logger.info("Initializing Supabase client...")
     key = SUPABASE_SERVICE_ROLE_KEY or SUPABASE_KEY
+    
+    if not SUPABASE_URL:
+        logger.error("SUPABASE_URL is missing from environment variables.")
+    if not key:
+        logger.error("Both SUPABASE_SERVICE_ROLE_KEY and SUPABASE_KEY are missing.")
+
     if SUPABASE_URL and key:
+        logger.info(f"Supabase Client created using {'Service Role' if SUPABASE_SERVICE_ROLE_KEY else 'Anon'} Key.")
         return create_client(SUPABASE_URL, key)
     return None
 
@@ -391,8 +404,29 @@ def build_payload(record: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @app.get("/health")
-def health() -> Dict[str, str]:
-    return {"status": "ok"}
+def health():
+    client = get_supabase_client()
+    db_status = "Not Initialized"
+    db_error = None
+    
+    if client:
+        try:
+            # Perform a simple query to verify the connection works
+            client.table("users").select("id").limit(1).execute()
+            db_status = "Connected"
+            logger.info("Health Check: Database connection successful.")
+        except Exception as e:
+            db_status = "Connection Failed"
+            db_error = str(e)
+            logger.error(f"Health Check: Database connection error: {db_error}")
+            
+    return {
+        "status": "ok",
+        "database": db_status,
+        "database_error": db_error,
+        "env_url_found": bool(SUPABASE_URL),
+        "env_service_key_found": bool(SUPABASE_SERVICE_ROLE_KEY)
+    }
 
 
 @router.get("/plants", response_model=List[PlantOut])
