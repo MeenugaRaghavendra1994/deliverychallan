@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Response, UploadFile, File # Added Depends
+from fastapi import FastAPI, HTTPException, Response, UploadFile, File, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr # Added EmailStr
 from reportlab.lib import colors
@@ -28,6 +28,9 @@ SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
 
 app = FastAPI(title="Delivery Challan API", version="1.0.0")
+
+api_router = APIRouter(prefix="/api")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -95,7 +98,7 @@ def validate_password_complexity(password: str):
         raise ValueError("Password must contain at least one special character.")
 
 # --- Auth Endpoints ---
-@app.post("/api/auth/signup", response_model=UserOut)
+@api_router.post("/auth/signup", response_model=UserOut)
 async def signup_user(user: UserCreate):
     client = get_supabase_client()
     if not client:
@@ -126,7 +129,7 @@ async def signup_user(user: UserCreate):
             raise HTTPException(status_code=409, detail="Email already registered.")
         raise HTTPException(status_code=400, detail=f"Supabase Signup Error: {str(e)}")
 
-@app.post("/api/auth/login")
+@api_router.post("/auth/login")
 async def login_user(user: UserLogin):
     client = get_supabase_client()
     if not client:
@@ -155,7 +158,7 @@ async def login_user(user: UserLogin):
         raise HTTPException(status_code=500, detail=f"Supabase Login Error: {str(e)}")
 
 
-@app.post("/api/auth/forgot-password")
+@api_router.post("/auth/forgot-password")
 async def forgot_password(request: ForgotPasswordRequest):
     client = get_supabase_client()
     if not client:
@@ -185,7 +188,7 @@ async def forgot_password(request: ForgotPasswordRequest):
         raise HTTPException(status_code=500, detail=f"Forgot Password Error: {str(e)}")
 
 
-@app.post("/api/auth/reset-password")
+@api_router.post("/auth/reset-password")
 async def reset_password(request: ResetPasswordRequest):
     client = get_supabase_client()
     if not client:
@@ -222,7 +225,7 @@ async def reset_password(request: ResetPasswordRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Reset Password Error: {str(e)}")
 
-@app.get("/api/users", response_model=List[UserOut])
+@api_router.get("/users", response_model=List[UserOut])
 async def list_users():
     client = get_supabase_client()
     if client:
@@ -234,7 +237,7 @@ async def list_users():
     return []
 
 
-@app.patch("/api/users/{user_id}/role")
+@api_router.patch("/users/{user_id}/role")
 async def update_user_role(user_id: str, payload: RoleUpdateRequest):
     client = get_supabase_client()
     if client:
@@ -382,7 +385,7 @@ def health() -> Dict[str, str]:
     return {"status": "ok"}
 
 
-@app.get("/api/plants", response_model=List[PlantOut])
+@api_router.get("/plants", response_model=List[PlantOut])
 def read_plants() -> List[Dict[str, Any]]:
     client = get_supabase_client()
     if client:
@@ -394,7 +397,7 @@ def read_plants() -> List[Dict[str, Any]]:
     return memory_store.list_plants()
 
 
-@app.post("/api/plants", response_model=PlantOut)
+@api_router.post("/plants", response_model=PlantOut)
 def create_plant(payload: PlantCreate) -> Dict[str, Any]:
     item = build_payload(payload.model_dump())
     item["id"] = str(uuid.uuid4())
@@ -413,7 +416,7 @@ def create_plant(payload: PlantCreate) -> Dict[str, Any]:
     return memory_store.create_plant(item)
 
 
-@app.delete("/api/plants/{id}")
+@api_router.delete("/plants/{id}")
 def delete_plant(id: str):
     client = get_supabase_client()
     if client:
@@ -427,7 +430,7 @@ def delete_plant(id: str):
     return {"status": "success"}
 
 
-@app.post("/api/plants/bulk-delete")
+@api_router.post("/plants/bulk-delete")
 def bulk_delete_plants(payload: BulkDeleteRequest):
     client = get_supabase_client()
     if client:
@@ -442,7 +445,7 @@ def bulk_delete_plants(payload: BulkDeleteRequest):
     return {"status": "success", "count": len(payload.ids)}
 
 
-@app.post("/api/plants/bulk-upload", response_model=List[PlantOut])
+@api_router.post("/plants/bulk-upload", response_model=List[PlantOut])
 async def bulk_upload_plants(file: UploadFile = File(...)):
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files are supported.")
@@ -491,7 +494,7 @@ async def bulk_upload_plants(file: UploadFile = File(...)):
     return []
 
 
-@app.get("/api/products", response_model=List[ProductOut])
+@api_router.get("/products", response_model=List[ProductOut])
 def read_products() -> List[Dict[str, Any]]:
     client = get_supabase_client()
     if client:
@@ -503,7 +506,7 @@ def read_products() -> List[Dict[str, Any]]:
     return memory_store.list_products()
 
 
-@app.post("/api/products", response_model=ProductOut)
+@api_router.post("/products", response_model=ProductOut)
 def create_product(payload: ProductCreate) -> Dict[str, Any]:
     item = build_payload(payload.model_dump())
     item["id"] = str(uuid.uuid4())
@@ -519,7 +522,7 @@ def create_product(payload: ProductCreate) -> Dict[str, Any]:
     return memory_store.create_product(item)
 
 
-@app.delete("/api/products/{id}")
+@api_router.delete("/products/{id}")
 def delete_product(id: str):
     client = get_supabase_client()
     if client:
@@ -533,7 +536,7 @@ def delete_product(id: str):
     return {"status": "success"}
 
 
-@app.post("/api/products/bulk-delete")
+@api_router.post("/products/bulk-delete")
 def bulk_delete_products(payload: BulkDeleteRequest):
     client = get_supabase_client()
     if client:
@@ -548,7 +551,7 @@ def bulk_delete_products(payload: BulkDeleteRequest):
     return {"status": "success", "count": len(payload.ids)}
 
 
-@app.post("/api/products/bulk-upload", response_model=List[ProductOut])
+@api_router.post("/products/bulk-upload", response_model=List[ProductOut])
 async def bulk_upload_products(file: UploadFile = File(...)):
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files are supported.")
@@ -591,7 +594,7 @@ async def bulk_upload_products(file: UploadFile = File(...)):
     return []
 
 
-@app.get("/api/challans", response_model=List[ChallanOut])
+@api_router.get("/challans", response_model=List[ChallanOut])
 def read_challans() -> List[Dict[str, Any]]:
     client = get_supabase_client()
     if client:
@@ -603,7 +606,7 @@ def read_challans() -> List[Dict[str, Any]]:
     return memory_store.list_challans()
 
 
-@app.get("/api/challans/next-number")
+@api_router.get("/challans/next-number")
 def get_next_challan_number() -> Dict[str, str]:
     """Calculates the next DC number based on SSPL prefix and starting sequence 1010767."""
     prefix = "SSPL"
@@ -653,7 +656,7 @@ def _create_challan_entry(challan_payload: Dict[str, Any]) -> Dict[str, Any]:
     return memory_store.create_challan(challan_payload)
 
 
-@app.delete("/api/challans/{id}")
+@api_router.delete("/challans/{id}")
 def delete_challan(id: str):
     client = get_supabase_client()
     if client:
@@ -667,7 +670,7 @@ def delete_challan(id: str):
     return {"status": "success"}
 
 
-@app.post("/api/challans/bulk-delete")
+@api_router.post("/challans/bulk-delete")
 def bulk_delete_challans(payload: BulkDeleteRequest):
     client = get_supabase_client()
     if client:
@@ -682,8 +685,8 @@ def bulk_delete_challans(payload: BulkDeleteRequest):
     return {"status": "success", "count": len(payload.ids)}
 
 
-@app.post("/api/challans", response_model=ChallanOut, tags=["Challans"])
-def create_challan(payload: ChallanCreate) -> Dict[str, Any]: # Changed from ChallanCreate to Dict[str, Any]
+@api_router.post("/challans", response_model=ChallanOut, tags=["Challans"])
+def create_challan(payload: ChallanCreate) -> Dict[str, Any]:
     return _create_challan_entry(payload.model_dump())
 
 
@@ -698,7 +701,7 @@ def _get_product_by_code(client, code: str) -> Optional[Dict[str, Any]]:
     return (response.data or [None])[0]
 
 
-@app.post("/api/challans/bulk-upload", response_model=List[ChallanOut])
+@api_router.post("/challans/bulk-upload", response_model=List[ChallanOut])
 async def bulk_upload_challans(file: UploadFile = File(...)):
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files are supported.")
@@ -901,7 +904,7 @@ async def bulk_upload_challans(file: UploadFile = File(...)):
     return created_challans
 
 
-@app.get("/api/reports/product-wise/csv")
+@api_router.get("/reports/product-wise/csv")
 def export_product_wise_csv(start_date: Optional[str] = None, end_date: Optional[str] = None):
     """Exports all challan items in a product-wise CSV format."""
     client = get_supabase_client()
@@ -949,7 +952,7 @@ def export_product_wise_csv(start_date: Optional[str] = None, end_date: Optional
     )
 
 
-@app.get("/api/reports/masters/plants/csv")
+@api_router.get("/reports/masters/plants/csv")
 def export_plants_master_csv():
     client = get_supabase_client()
     if client:
@@ -971,7 +974,7 @@ def export_plants_master_csv():
     )
 
 
-@app.get("/api/reports/masters/products/csv")
+@api_router.get("/reports/masters/products/csv")
 def export_products_master_csv():
     client = get_supabase_client()
     if client:
@@ -993,7 +996,7 @@ def export_products_master_csv():
     )
 
 
-@app.get("/api/templates/{template_name}")
+@api_router.get("/templates/{template_name}")
 def download_template(template_name: str):
     """Provides sample CSV templates for bulk uploads."""
     templates = {
@@ -1011,7 +1014,7 @@ def download_template(template_name: str):
     )
 
 
-@app.get("/api/challans/{challan_id}/pdf")
+@api_router.get("/challans/{challan_id}/pdf")
 def download_challan_pdf(challan_id: str) -> Response:
     client = get_supabase_client()
     if client:
@@ -1129,3 +1132,8 @@ def build_challan_pdf(challan: Dict[str, Any]) -> bytes:
     story.append(Paragraph(f"Created By: {challan.get('created_by', 'N/A')}", table_value_style))
     doc.build(story)
     return buffer.getvalue()
+
+# Include the router in the app
+app.include_router(api_router)
+# Also support root-level access if Vercel strips the prefix entirely
+app.include_router(api_router, prefix="")
