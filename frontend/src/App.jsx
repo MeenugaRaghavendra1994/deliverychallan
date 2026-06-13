@@ -212,7 +212,9 @@ export default function App() {
   const [users, setUsers] = useState([]);
 
   const requestJson = async (path, options = {}) => {
-    const response = await fetch(`${API_BASE}${path}`, {
+    const url = `${API_BASE}${path}`;
+    console.log(`[API Request] ${options.method || 'GET'} ${url}`);
+    const response = await fetch(url, {
       headers: { "Content-Type": "application/json", ...(options.headers || {}) },
       ...options,
     });
@@ -273,6 +275,20 @@ export default function App() {
     } catch (error) { setStatus(error.message); }
     finally { setIsLoading(false); }
   };
+
+  // --- Diagnostic Logs ---
+  useEffect(() => {
+    console.log("--- Frontend Diagnostic Start ---");
+    console.log("Current API_BASE:", API_BASE);
+    console.log("Window Location:", window.location.href);
+    
+    // Immediate connectivity test
+    fetch(`${API_BASE}/health`)
+      .then(res => res.json())
+      .then(data => console.log("Backend Health Check Result:", data))
+      .catch(err => console.error("Backend Health Check Failed:", err))
+      .finally(() => console.log("--- Frontend Diagnostic End ---"));
+  }, []);
 
   useEffect(() => {
     // Only load data if logged in

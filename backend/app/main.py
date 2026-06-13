@@ -408,7 +408,7 @@ def build_payload(record: Dict[str, Any]) -> Dict[str, Any]:
 
 @router.get("/health", tags=["System"])
 def health():
-    client = get_supabase_client()
+    client = get_supabase_client() 
     db_status = "Not Initialized"
     db_error = None
     
@@ -1200,7 +1200,7 @@ async def startup_event():
     
     client = get_supabase_client()
     if client:
-        logger.info("Supabase Client: Initialized successfully.")
+        logger.info(f"Supabase Client: Initialized successfully. Target URL: {SUPABASE_URL}")
         try:
             # Perform a lightweight check to surface connection errors in deployment logs
             client.table("users").select("id").limit(1).execute()
