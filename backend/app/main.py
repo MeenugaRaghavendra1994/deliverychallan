@@ -1188,16 +1188,21 @@ app.include_router(router, prefix="/api", tags=["API"])
 
 @app.on_event("startup")
 async def startup_event():
+    logger.info("Starting application startup event...")
     # Log presence of environment variables (do not log the actual keys)
     logger.info(f"Startup: SUPABASE_URL set: {bool(SUPABASE_URL)}, Service role key present: {bool(SUPABASE_SERVICE_ROLE_KEY)}, Anon key present: {bool(SUPABASE_KEY)}")
     client = get_supabase_client()
     if client:
+        logger.info("Supabase client successfully obtained. Attempting database connection check...")
         try:
             # Perform a lightweight check to surface connection errors in deployment logs
             client.table("users").select("id").limit(1).execute()
             logger.info("Startup DB check: Supabase connection successful.")
         except Exception as e:
             logger.error(f"Startup DB check failed: {e}")
+    else:
+        logger.error("Startup DB check: Supabase client could not be initialized. Please check environment variables (SUPABASE_URL, SUPABASE_KEY, SUPABASE_SERVICE_ROLE_KEY).")
+    logger.info("Application startup event finished.")
 
 # Add a debug endpoint to inspect incoming ASGI scope and path mapping
 @router.get("/__debug")
