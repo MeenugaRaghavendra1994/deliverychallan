@@ -1182,8 +1182,9 @@ def build_challan_pdf(challan: Dict[str, Any]) -> bytes:
     return buffer.getvalue()
 
 
-# Include the router with /api prefix only to avoid ambiguous routing
+# Mount router at root and under /api so requests forwarded either as "/plants" or "/api/plants" are handled
 app.include_router(router, tags=["API"])
+app.include_router(router, prefix="/api", tags=["API"])
 
 @app.on_event("startup")
 async def startup_event():
