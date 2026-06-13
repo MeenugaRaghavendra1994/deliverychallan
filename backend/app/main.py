@@ -379,17 +379,18 @@ memory_store = InMemoryStore()
 
 def get_supabase_client():
     # Use Service Role Key for backend administrative access to bypass RLS policies
-    logger.info("Initializing Supabase client...")
     key = SUPABASE_SERVICE_ROLE_KEY or SUPABASE_KEY
     
-    if not SUPABASE_URL:
-        logger.error("SUPABASE_URL is missing from environment variables.")
-    if not key:
-        logger.error("Both SUPABASE_SERVICE_ROLE_KEY and SUPABASE_KEY are missing.")
-
     if SUPABASE_URL and key:
-        logger.info(f"Supabase Client created using {'Service Role' if SUPABASE_SERVICE_ROLE_KEY else 'Anon'} Key.")
+        # Determine which key type is being used for logging purposes
+        key_type = "Service Role" if SUPABASE_SERVICE_ROLE_KEY else "Anon"
+        logger.info(f"Supabase Client initialized. URL: {bool(SUPABASE_URL)}, Key Type: {key_type}")
         return create_client(SUPABASE_URL, key)
+    
+    logger.error(
+        f"Supabase initialization failed. URL Present: {bool(SUPABASE_URL)}, "
+        f"Service Key Present: {bool(SUPABASE_SERVICE_ROLE_KEY)}, Anon Key Present: {bool(SUPABASE_KEY)}"
+    )
     return None
 
 
@@ -425,7 +426,8 @@ def health():
         "database": db_status,
         "database_error": db_error,
         "env_url_found": bool(SUPABASE_URL),
-        "env_service_key_found": bool(SUPABASE_SERVICE_ROLE_KEY)
+        "env_service_key_found": bool(SUPABASE_SERVICE_ROLE_KEY),
+        "using_service_role": bool(SUPABASE_SERVICE_ROLE_KEY)
     }
 
 
