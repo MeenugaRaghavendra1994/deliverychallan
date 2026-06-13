@@ -186,6 +186,14 @@ export default function App() {
   const [challanSearch, setChallanSearch] = useState("");
   const [reportDates, setReportDates] = useState({ start: "", end: "" });
 
+  // Manage Data search and selection states
+  const [plantManageSearch, setPlantManageSearch] = useState("");
+  const [productManageSearch, setProductManageSearch] = useState("");
+  const [challanManageSearch, setChallanManageSearch] = useState("");
+  const [selectedPlants, setSelectedPlants] = useState(new Set());
+  const [selectedProducts, setSelectedProducts] = useState(new Set());
+  const [selectedChallans, setSelectedChallans] = useState(new Set());
+
 
   // --- Login/Signup States ---
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -286,6 +294,28 @@ export default function App() {
       setStatus("Plant deleted.");
     } catch (error) { setStatus(error.message); }
     finally { setIsLoading(false); }
+  };
+
+  const handleBulkDelete = async (type, selectedIds, setter, selectionSetter) => {
+    if (selectedIds.size === 0) return;
+    if (!window.confirm(`Are you sure you want to delete ${selectedIds.size} ${type}(s)? This action cannot be undone.`)) return;
+    setIsLoading(true);
+    try {
+      await requestJson(`/${type}s/bulk-delete`, {
+        method: "POST",
+        body: JSON.stringify({ ids: Array.from(selectedIds) }),
+      });
+      setter((current) => current.filter((item) => !selectedIds.has(item.id)));
+      selectionSetter(new Set());
+      setStatus(`${selectedIds.size} ${type}(s) deleted.`);
+    } catch (error) { setStatus(error.message); }
+    finally { setIsLoading(false); }
+  };
+
+  const toggleSelect = (id, currentSet, setter) => {
+    const next = new Set(currentSet);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    setter(next);
   };
 
   const handleDeleteProduct = async (id) => {
@@ -891,37 +921,115 @@ export default function App() {
         <section className="stack">
           <article className="card">
             <h2>Manage Plants</h2>
+            <div className="stack" style={{ marginBottom: '1rem' }}>
+              <input 
+                placeholder="Search Plants by name or code..." 
+                value={plantManageSearch} 
+                onChange={(e) => setPlantManageSearch(e.target.value)} 
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <p className="helper-text">{selectedPlants.size} selected</p>
+                <button 
+                  className="secondary" 
+                  style={{ color: 'red', borderColor: 'red' }}
+                  onClick={() => handleBulkDelete('plant', selectedPlants, setPlants, setSelectedPlants)}
+                  disabled={selectedPlants.size === 0}
+                >Delete Selected</button>
+              </div>
+            </div>
             <div className="stack">
-              {plants.map(p => (
-                <div key={p.id} className="list-row">
-                  <span>{p.name} (Code: {p.code})</span>
-                  <button className="secondary" onClick={() => handleDeletePlant(p.id)}>Delete</button>
-                </div>
-              ))}
+              {plants
+                .filter(p => p.name.toLowerCase().includes(plantManageSearch.toLowerCase()) || p.code.toLowerCase().includes(plantManageSearch.toLowerCase()))
+                .map(p => (
+                  <div key={p.id} className="list-row">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                      <input 
+                        type="checkbox" 
+                        style={{ width: 'auto' }} 
+                        checked={selectedPlants.has(p.id)} 
+                        onChange={() => toggleSelect(p.id, selectedPlants, setSelectedPlants)}
+                      />
+                      <span>{p.name} (Code: {p.code})</span>
+                    </div>
+                    <button className="secondary" onClick={() => handleDeletePlant(p.id)}>Delete</button>
+                  </div>
+                ))}
             </div>
           </article>
 
           <article className="card">
             <h2>Manage Products</h2>
+            <div className="stack" style={{ marginBottom: '1rem' }}>
+              <input 
+                placeholder="Search Products by name or SKU..." 
+                value={productManageSearch} 
+                onChange={(e) => setProductManageSearch(e.target.value)} 
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <p className="helper-text">{selectedProducts.size} selected</p>
+                <button 
+                  className="secondary" 
+                  style={{ color: 'red', borderColor: 'red' }}
+                  onClick={() => handleBulkDelete('product', selectedProducts, setProducts, setSelectedProducts)}
+                  disabled={selectedProducts.size === 0}
+                >Delete Selected</button>
+              </div>
+            </div>
             <div className="stack">
-              {products.map(p => (
-                <div key={p.id} className="list-row">
-                  <span>{p.name} (SKU: {p.code})</span>
-                  <button className="secondary" onClick={() => handleDeleteProduct(p.id)}>Delete</button>
-                </div>
-              ))}
+              {products
+                .filter(p => p.name.toLowerCase().includes(productManageSearch.toLowerCase()) || p.code.toLowerCase().includes(productManageSearch.toLowerCase()))
+                .map(p => (
+                  <div key={p.id} className="list-row">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                      <input 
+                        type="checkbox" 
+                        style={{ width: 'auto' }} 
+                        checked={selectedProducts.has(p.id)} 
+                        onChange={() => toggleSelect(p.id, selectedProducts, setSelectedProducts)}
+                      />
+                      <span>{p.name} (SKU: {p.code})</span>
+                    </div>
+                    <button className="secondary" onClick={() => handleDeleteProduct(p.id)}>Delete</button>
+                  </div>
+                ))}
             </div>
           </article>
 
           <article className="card">
             <h2>Manage Challans</h2>
+            <div className="stack" style={{ marginBottom: '1rem' }}>
+              <input 
+                placeholder="Search Challans by Number or Customer..." 
+                value={challanManageSearch} 
+                onChange={(e) => setChallanManageSearch(e.target.value)} 
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <p className="helper-text">{selectedChallans.size} selected</p>
+                <button 
+                  className="secondary" 
+                  style={{ color: 'red', borderColor: 'red' }}
+                  onClick={() => handleBulkDelete('challan', selectedChallans, setChallans, setSelectedChallans)}
+                  disabled={selectedChallans.size === 0}
+                >Delete Selected</button>
+              </div>
+            </div>
             <div className="stack">
-              {challans.map(c => (
-                <div key={c.id} className="list-row">
-                  <span>{c.challan_number} - {c.customer_name} ({c.challan_date})</span>
-                  <button className="secondary" onClick={() => handleDeleteChallan(c.id)}>Delete</button>
-                </div>
-              ))}
+              {challans
+                .filter(c => c.challan_number?.toLowerCase().includes(challanManageSearch.toLowerCase()) || c.customer_name?.toLowerCase().includes(challanManageSearch.toLowerCase()))
+                .map(c => (
+                  <div key={c.id} className="list-row">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                      <input 
+                        type="checkbox" 
+                        style={{ width: 'auto' }} 
+                        checked={selectedChallans.has(c.id)} 
+                        onChange={() => toggleSelect(c.id, selectedChallans, setSelectedChallans)}
+                      />
+                      <span>{c.challan_number} - {c.customer_name} ({c.challan_date})</span>
+                    </div>
+                    <button className="secondary" onClick={() => handleDeleteChallan(c.id)}>Delete</button>
+                  </div>
+                ))}
             </div>
           </article>
         </section>

@@ -50,6 +50,10 @@ class UserOut(BaseModel):
     email: EmailStr
     created_at: Optional[str] = None
 
+
+class BulkDeleteRequest(BaseModel):
+    ids: List[str]
+
 # --- Utility Functions for Auth ---
 def verify_password(plain_password, hashed_password):
     try:
@@ -300,6 +304,21 @@ def delete_plant(id: str):
     return {"status": "success"}
 
 
+@app.post("/plants/bulk-delete")
+def bulk_delete_plants(payload: BulkDeleteRequest):
+    client = get_supabase_client()
+    if client:
+        try:
+            client.table("plants").delete().in_("id", payload.ids).execute()
+            return {"status": "success", "count": len(payload.ids)}
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Bulk Delete Error: {str(e)}")
+    
+    ids_to_del = set(payload.ids)
+    memory_store.plants = [p for p in memory_store.plants if p.get("id") not in ids_to_del]
+    return {"status": "success", "count": len(payload.ids)}
+
+
 @app.post("/plants/bulk-upload", response_model=List[PlantOut])
 async def bulk_upload_plants(file: UploadFile = File(...)):
     if not file.filename.endswith(".csv"):
@@ -389,6 +408,21 @@ def delete_product(id: str):
 
     memory_store.products = [p for p in memory_store.products if p.get("id") != id]
     return {"status": "success"}
+
+
+@app.post("/products/bulk-delete")
+def bulk_delete_products(payload: BulkDeleteRequest):
+    client = get_supabase_client()
+    if client:
+        try:
+            client.table("products").delete().in_("id", payload.ids).execute()
+            return {"status": "success", "count": len(payload.ids)}
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Bulk Delete Error: {str(e)}")
+
+    ids_to_del = set(payload.ids)
+    memory_store.products = [p for p in memory_store.products if p.get("id") not in ids_to_del]
+    return {"status": "success", "count": len(payload.ids)}
 
 
 @app.post("/products/bulk-upload", response_model=List[ProductOut])
@@ -507,6 +541,21 @@ def delete_challan(id: str):
 
     memory_store.challans = [c for c in memory_store.challans if c.get("id") != id]
     return {"status": "success"}
+
+
+@app.post("/challans/bulk-delete")
+def bulk_delete_challans(payload: BulkDeleteRequest):
+    client = get_supabase_client()
+    if client:
+        try:
+            client.table("challans").delete().in_("id", payload.ids).execute()
+            return {"status": "success", "count": len(payload.ids)}
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Bulk Delete Error: {str(e)}")
+
+    ids_to_del = set(payload.ids)
+    memory_store.challans = [c for c in memory_store.challans if c.get("id") not in ids_to_del]
+    return {"status": "success", "count": len(payload.ids)}
 
 
 @app.post("/challans", response_model=ChallanOut, tags=["Challans"])
