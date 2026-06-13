@@ -52,6 +52,15 @@ class UserOut(BaseModel):
     created_at: Optional[str] = None
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    token: str
+    new_password: str
+
 class RoleUpdateRequest(BaseModel):
     role: str
 
@@ -145,6 +154,73 @@ async def login_user(user: UserLogin):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Supabase Login Error: {str(e)}")
 
+
+@app.post("/auth/forgot-password")
+async def forgot_password(request: ForgotPasswordRequest):
+    client = get_supabase_client()
+    if not client:
+        raise HTTPException(status_code=500, detail="Supabase client not initialized.")
+
+    try:
+        response = client.table("users").select("id").eq("email", request.email).execute()
+        user_data = (response.data or [None])[0]
+
+        if not user_data:
+            # For security, don't reveal if the email exists or not
+            return {"message": "If an account with that email exists, a password reset link has been sent."}
+
+        reset_token = str(uuid.uuid4())
+        reset_token_expires_at = datetime.now(timezone.utc) + timedelta(hours=1) # Token valid for 1 hour
+
+        client.table("users").update({
+            "reset_token": reset_token,
+            "reset_token_expires_at": reset_token_expires_at.isoformat()
+        }).eq("id", user_data["id"]).execute()
+
+        # In a real application, you would send an email here
+        print(f"Password reset token for {request.email}: {reset_token}")
+
+        return {"message": "If an account with that email exists, a password reset link has been sent."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Forgot Password Error: {str(e)}")
+
+
+@app.post("/auth/reset-password")
+async def reset_password(request: ResetPasswordRequest):
+    client = get_supabase_client()
+    if not client:
+        raise HTTPException(status_code=500, detail="Supabase client not initialized.")
+
+    try:
+        validate_password_complexity(request.new_password)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    try:
+        response = client.table("users").select("id, reset_token, reset_token_expires_at").eq("email", request.email).execute()
+        user_data = (response.data or [None])[0]
+
+        if not user_data or user_data.get("reset_token") != request.token:
+            raise HTTPException(status_code=400, detail="Invalid or expired reset token.")
+
+        expires_at_str = user_data.get("reset_token_expires_at")
+        if expires_at_str:
+            expires_at = datetime.fromisoformat(expires_at_str.replace('Z', '+00:00')) # Handle 'Z' for UTC
+            if expires_at < datetime.now(timezone.utc):
+                raise HTTPException(status_code=400, detail="Invalid or expired reset token.")
+
+        hashed_password = get_password_hash(request.new_password)
+        client.table("users").update({
+            "hashed_password": hashed_password,
+            "reset_token": None,
+            "reset_token_expires_at": None
+        }).eq("id", user_data["id"]).execute()
+
+        return {"message": "Password has been reset successfully."}
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Reset Password Error: {str(e)}")
 
 @app.get("/users", response_model=List[UserOut])
 async def list_users():

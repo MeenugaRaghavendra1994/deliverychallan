@@ -60,5 +60,7 @@ create table if not exists users (
     email text not null unique,
     hashed_password text not null,
     role text not null default 'User', -- New column for roles
-    created_at timestamp with time zone default now()
+    created_at timestamp with time zone default now(),
+    reset_token text,
+    reset_token_expires_at timestamp with time zone
 );

@@ -202,6 +202,11 @@ export default function App() {
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [authError, setAuthError] = useState("");
+  const [showForgotPasswordForm, setShowForgotPasswordForm] = useState(false);
+  const [showResetPasswordForm, setShowResetPasswordForm] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetToken, setResetToken] = useState("");
+  const [newPassword, setNewPassword] = useState("");
   const [loggedInUserEmail, setLoggedInUserEmail] = useState(""); // New state
   const [loginTime, setLoginTime] = useState(""); // New state
   const [users, setUsers] = useState([]);
@@ -633,6 +638,56 @@ export default function App() {
     setStatus("Logged out successfully.");
   };
 
+  const handleForgotPasswordRequest = async (event) => {
+    event.preventDefault();
+    setIsLoading(true);
+    setAuthError("");
+    try {
+      const response = await fetch(`${API_BASE}/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: resetEmail }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setAuthError(data.detail || "Failed to send reset link.");
+      } else {
+        setStatus(data.message);
+        setShowForgotPasswordForm(false);
+        // Optionally, show a message to check email and then prompt for token/new password
+        // For now, we'll just go back to login and user can manually enter token if they have it
+      }
+    } catch (error) {
+      setAuthError(error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePasswordReset = async (event) => {
+    event.preventDefault();
+    setIsLoading(true);
+    setAuthError("");
+    try {
+      const response = await fetch(`${API_BASE}/auth/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: resetEmail, token: resetToken, new_password: newPassword }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setAuthError(data.detail || "Failed to reset password.");
+      } else {
+        setStatus(data.message);
+        setShowResetPasswordForm(false);
+        setAuthEmail(resetEmail); // Pre-fill email for login
+      }
+    } catch (error) {
+      setAuthError(error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
   // --- Password Complexity Validation (Frontend) ---
   const validatePassword = (password) => {
     const errors = [];
@@ -657,12 +712,12 @@ export default function App() {
     return errors;
   };
 
-  const passwordValidationErrors = showSignupForm ? validatePassword(authPassword) : [];
+  const passwordValidationErrors = (showSignupForm || showResetPasswordForm) ? validatePassword(showSignupForm ? authPassword : newPassword) : [];
 
 
   if (!isLoggedIn) {
     return (
-      <div className="app-shell">
+      <div className="app-shell" style={{ maxWidth: '500px' }}>
         <style>{styles}</style>
         {isLoading && (
           <div className="loading-overlay">
@@ -673,9 +728,17 @@ export default function App() {
         <header className="hero-card">
           <div>
             <p className="eyebrow">Delivery Challan System</p>
-            <h1>{showSignupForm ? "Sign Up" : "Login"}</h1>
+            <h1>
+              {showSignupForm ? "Sign Up" : ""}
+              {!showSignupForm && !showForgotPasswordForm && !showResetPasswordForm ? "Login" : ""}
+              {showForgotPasswordForm ? "Forgot Password" : ""}
+              {showResetPasswordForm ? "Reset Password" : ""}
+            </h1>
             <p className="helper-text">
-              {showSignupForm ? "Create an account to get started." : "Please log in to access the system."}
+              {showSignupForm ? "Create an account to get started." : ""}
+              {!showSignupForm && !showForgotPasswordForm && !showResetPasswordForm ? "Please log in to access the system." : ""}
+              {showForgotPasswordForm ? "Enter your email to receive a password reset link." : ""}
+              {showResetPasswordForm ? "Enter your new password." : ""}
             </p>
           </div>
           <div className="status-pill">
@@ -683,52 +746,136 @@ export default function App() {
             {authError || status}
           </div>
         </header>
+        
+        {!showForgotPasswordForm && !showResetPasswordForm && (
+          <section className="card wide-card">
+            <form onSubmit={handleAuthSubmit} className="stack">
+              <input
+                type="email"
+                value={authEmail}
+                onChange={(e) => setAuthEmail(e.target.value)}
+                placeholder="Email"
+                required
+              />
+              <input
+                type="password"
+                value={authPassword}
+                onChange={(e) => setAuthPassword(e.target.value)}
+                placeholder="Password"
+                required
+              />
+              {showSignupForm && passwordValidationErrors.length > 0 && (
+                <ul style={{ color: 'red', fontSize: '0.8rem', listStyleType: 'disc', marginLeft: '1.2rem' }}>
+                  {passwordValidationErrors.map((error, index) => (
+                    <li key={index}>{error}</li>
+                  ))}
+                </ul>
+              )}
+              <button type="submit" disabled={isLoading || (showSignupForm && passwordValidationErrors.length > 0)}>
+                {showSignupForm ? "Sign Up" : "Login"}
+              </button>
+            </form>
+            <p style={{ textAlign: 'center', marginTop: '1rem' }}>
+              {!showSignupForm && (
+                <button type="button" className="secondary" onClick={() => setShowForgotPasswordForm(true)}>
+                  Forgot Password?
+                </button>
+              )}
+              {showSignupForm ? (
+                <>
+                  Already have an account?{" "}
+                  <button type="button" className="secondary" onClick={() => setShowSignupForm(false)}>
+                    Login
+                  </button>
+                </>
+              ) : (
+                <>
+                  Don't have an account?{" "}
+                  <button type="button" className="secondary" onClick={() => setShowSignupForm(true)}>
+                    Sign Up
+                  </button>
+                </>
+              )}
+            </p>
+          </section>
+        )}
 
-        <section className="card wide-card">
-          <form onSubmit={handleAuthSubmit} className="stack">
-            <input
-              type="email"
-              value={authEmail}
-              onChange={(e) => setAuthEmail(e.target.value)}
-              placeholder="Email"
-              required
-            />
-            <input
-              type="password"
-              value={authPassword}
-              onChange={(e) => setAuthPassword(e.target.value)}
-              placeholder="Password"
-              required
-            />
-            {showSignupForm && passwordValidationErrors.length > 0 && (
-              <ul style={{ color: 'red', fontSize: '0.8rem', listStyleType: 'disc', marginLeft: '1.2rem' }}>
-                {passwordValidationErrors.map((error, index) => (
-                  <li key={index}>{error}</li>
-                ))}
-              </ul>
-            )}
-            <button type="submit" disabled={isLoading || (showSignupForm && passwordValidationErrors.length > 0)}>
-              {showSignupForm ? "Sign Up" : "Login"}
-            </button>
-          </form>
-          <p style={{ textAlign: 'center', marginTop: '1rem' }}>
-            {showSignupForm ? (
-              <>
-                Already have an account?{" "}
-                <button type="button" className="secondary" onClick={() => setShowSignupForm(false)}>
-                  Login
-                </button>
-              </>
-            ) : (
-              <>
-                Don't have an account?{" "}
-                <button type="button" className="secondary" onClick={() => setShowSignupForm(true)}>
-                  Sign Up
-                </button>
-              </>
-            )}
-          </p>
-        </section>
+        {showForgotPasswordForm && (
+          <section className="card wide-card">
+            <form onSubmit={handleForgotPasswordRequest} className="stack">
+              <input
+                type="email"
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                placeholder="Enter your email"
+                required
+              />
+              <button type="submit" disabled={isLoading}>Send Reset Link</button>
+            </form>
+            <p style={{ textAlign: 'center', marginTop: '1rem' }}>
+              <button type="button" className="secondary" onClick={() => setShowForgotPasswordForm(false)}>
+                Back to Login
+              </button>
+              {showSignupForm ? (
+                <>
+                  Already have an account?{" "}
+                  <button type="button" className="secondary" onClick={() => setShowSignupForm(false)}>
+                    Login
+                  </button>
+                </>
+              ) : (
+                <>
+                  Don't have an account?{" "}
+                  <button type="button" className="secondary" onClick={() => setShowSignupForm(true)}>
+                    Sign Up
+                  </button>
+                </>
+              )}
+            </p>
+          </section>
+        )}
+
+        {showResetPasswordForm && (
+          <section className="card wide-card">
+            <form onSubmit={handlePasswordReset} className="stack">
+              <input
+                type="email"
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                placeholder="Your email"
+                required
+                readOnly // Email should be pre-filled or not editable here
+              />
+              <input
+                type="text"
+                value={resetToken}
+                onChange={(event) => setResetToken(event.target.value)}
+                placeholder="Reset Token"
+                required
+              />
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="New Password"
+                required
+              />
+              {passwordValidationErrors.length > 0 && (
+                <ul style={{ color: 'red', fontSize: '0.8rem', listStyleType: 'disc', marginLeft: '1.2rem' }}>
+                  {passwordValidationErrors.map((error, index) => (
+                    <li key={index}>{error}</li>
+                  ))}
+                </ul>
+              )}
+              <button type="submit" disabled={isLoading || passwordValidationErrors.length > 0}>Reset Password</button>
+            </form>
+            <p style={{ textAlign: 'center', marginTop: '1rem' }}>
+              <button type="button" className="secondary" onClick={() => setShowResetPasswordForm(false)}>
+                Back to Login
+              </button>
+            </p>
+          </section>
+        )}
       </div>
     );
   }
@@ -1088,20 +1235,24 @@ export default function App() {
         </section>
       )}
 
+      
       {activeTab === "user-management" && userRole === "Admin" && (
         <section className="card wide-card">
           <h2>User Management</h2>
-          <p className="helper-text">Change user permissions by updating their roles.</p>
-          <div className="stack" style={{ marginTop: '1.5rem' }}>
-            {users.map(u => (
+          <p className="helper-text">
+            Change user permissions by updating their roles.
+          </p>
+
+          <div className="stack" style={{ marginTop: "1.5rem" }}>
+            {users.map((u) => (
               <div key={u.id} className="list-row">
                 <span>{u.email}</span>
-                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                  <select 
-                    value={u.role} 
+                <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+                  <select
+                    value={u.role}
                     onChange={(e) => handleUpdateRole(u.id, e.target.value)}
-                    style={{ width: 'auto', padding: '0.4rem' }}
-                    disabled={u.email === loggedInUserEmail} // Prevent self-demotion
+                    style={{ width: "auto", padding: "0.4rem" }}
+                    disabled={u.email === loggedInUserEmail}
                   >
                     <option value="User">User</option>
                     <option value="Admin">Admin</option>
