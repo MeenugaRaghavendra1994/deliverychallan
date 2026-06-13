@@ -38,12 +38,6 @@ app = FastAPI(title="Delivery Challan API", version="1.0.0")
 # Define router without a fixed prefix so we can mount it twice
 router = APIRouter()
 
-
-@app.get("/")
-def root():
-    return {"message": "API Running at root"}
-
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -51,6 +45,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@router.get("/")
+def root():
+    return {"message": "API Running at root"}
+
 
 # --- User Models ---
 class UserCreate(BaseModel):
