@@ -197,12 +197,14 @@ export default function App() {
 
   // --- Login/Signup States ---
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userRole, setUserRole] = useState("User");
   const [showSignupForm, setShowSignupForm] = useState(false);
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [authError, setAuthError] = useState("");
   const [loggedInUserEmail, setLoggedInUserEmail] = useState(""); // New state
   const [loginTime, setLoginTime] = useState(""); // New state
+  const [users, setUsers] = useState([]);
 
   const requestJson = async (path, options = {}) => {
     const response = await fetch(`${API_BASE}${path}`, {
@@ -257,17 +259,29 @@ export default function App() {
     }
   };
 
+  const loadUsers = async () => {
+    if (userRole !== "Admin") return;
+    setIsLoading(true);
+    try {
+      const data = await requestJson("/users");
+      setUsers(data);
+    } catch (error) { setStatus(error.message); }
+    finally { setIsLoading(false); }
+  };
+
   useEffect(() => {
     // Only load data if logged in
     if (isLoggedIn) {
       const fetchData = async () => {
         setIsLoading(true);
-        await Promise.all([loadPlants(), loadProducts(), loadChallans()]);
+        const tasks = [loadPlants(), loadProducts(), loadChallans()];
+        if (userRole === "Admin") tasks.push(loadUsers());
+        await Promise.all(tasks);
         setIsLoading(false);
       };
       fetchData();
     }
-  }, [isLoggedIn]); // Re-run when login status changes
+  }, [isLoggedIn, userRole]); // Re-run when login status or role changes
 
   const handlePlantSubmit = async (event) => {
     event.preventDefault();
@@ -318,6 +332,20 @@ export default function App() {
     const next = new Set(currentSet);
     if (next.has(id)) next.delete(id); else next.add(id);
     setter(next);
+  };
+
+  const handleUpdateRole = async (userId, newRole) => {
+    if (!window.confirm(`Change user role to ${newRole}?`)) return;
+    setIsLoading(true);
+    try {
+      await requestJson(`/users/${userId}/role`, {
+        method: "PATCH",
+        body: JSON.stringify({ role: newRole }),
+      });
+      setUsers(current => current.map(u => u.id === userId ? { ...u, role: newRole } : u));
+      setStatus(`Updated role for user.`);
+    } catch (error) { setStatus(error.message); }
+    finally { setIsLoading(false); }
   };
 
   const handleDeleteProduct = async (id) => {
@@ -576,19 +604,20 @@ export default function App() {
         body: JSON.stringify({ email: authEmail, password: authPassword }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        setAuthError(errorData.detail || "Authentication failed.");
+        setAuthError(data.detail || "Authentication failed.");
       } else {
-        // Assuming successful login/signup, set isLoggedIn to true
         setIsLoggedIn(true);
+        setUserRole(data.role || "User");
+        setLoggedInUserEmail(authEmail);
+        setLoginTime(new Date().toLocaleString());
         setAuthEmail("");
         setAuthPassword("");
         setAuthError("");
         setStatus(showSignupForm ? "Signup successful! Please log in." : "Login successful!");
       }
-      setLoggedInUserEmail(authEmail); // Set logged-in user email
-      setLoginTime(new Date().toLocaleString()); // Set login time
     } catch (error) {
       setAuthError(error.message);
     } finally {
@@ -598,6 +627,7 @@ export default function App() {
 
   const handleLogout = () => {
     setIsLoggedIn(false);
+    setUserRole("User");
     setLoggedInUserEmail("");
     setLoginTime("");
     setStatus("Logged out successfully.");
@@ -730,7 +760,7 @@ export default function App() {
             <p className="eyebrow" style={{ marginBottom: '0.5rem' }}>
               Logged in as: {loggedInUserEmail}
               <br />
-              Login Time: {loginTime}
+              Login Time: {loginTime} | Role: {userRole}
             </p>
           )}
           <button className="secondary" onClick={handleLogout} disabled={isLoading}>Logout</button>
@@ -746,7 +776,12 @@ export default function App() {
         <button className={activeTab === "create-challan" ? "" : "secondary"} onClick={() => setActiveTab("create-challan")}>Create Challan</button>
         <button className={activeTab === "dashboard" ? "" : "secondary"} onClick={() => setActiveTab("dashboard")}>Dashboard</button>
         <button className={activeTab === "reports" ? "" : "secondary"} onClick={() => setActiveTab("reports")}>Reports</button>
-        <button className={activeTab === "manage-data" ? "" : "secondary"} onClick={() => setActiveTab("manage-data")}>Manage Data</button>
+        {userRole === "Admin" && (
+          <>
+            <button className={activeTab === "manage-data" ? "" : "secondary"} onClick={() => setActiveTab("manage-data")}>Manage Data</button>
+            <button className={activeTab === "user-management" ? "" : "secondary"} onClick={() => setActiveTab("user-management")}>User Management</button>
+          </>
+        )}
       </nav>
 
       {activeTab === "masters" && (
@@ -935,7 +970,7 @@ export default function App() {
         </section>
       )}
 
-      {activeTab === "manage-data" && (
+      {activeTab === "manage-data" && userRole === "Admin" && (
         <section className="stack">
           <article className="card">
             <h2>Manage Plants</h2>
@@ -1050,6 +1085,31 @@ export default function App() {
                 ))}
             </div>
           </article>
+        </section>
+      )}
+
+      {activeTab === "user-management" && userRole === "Admin" && (
+        <section className="card wide-card">
+          <h2>User Management</h2>
+          <p className="helper-text">Change user permissions by updating their roles.</p>
+          <div className="stack" style={{ marginTop: '1.5rem' }}>
+            {users.map(u => (
+              <div key={u.id} className="list-row">
+                <span>{u.email}</span>
+                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                  <select 
+                    value={u.role} 
+                    onChange={(e) => handleUpdateRole(u.id, e.target.value)}
+                    style={{ width: 'auto', padding: '0.4rem' }}
+                    disabled={u.email === loggedInUserEmail} // Prevent self-demotion
+                  >
+                    <option value="User">User</option>
+                    <option value="Admin">Admin</option>
+                  </select>
+                </div>
+              </div>
+            ))}
+          </div>
         </section>
       )}
     </div>

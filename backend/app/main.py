@@ -48,7 +48,12 @@ class UserLogin(BaseModel):
 class UserOut(BaseModel):
     id: str
     email: EmailStr
+    role: str
     created_at: Optional[str] = None
+
+
+class RoleUpdateRequest(BaseModel):
+    role: str
 
 
 class BulkDeleteRequest(BaseModel):
@@ -93,7 +98,14 @@ async def signup_user(user: UserCreate):
         raise HTTPException(status_code=400, detail=str(e))
 
     hashed_password = get_password_hash(user.password)
-    new_user_data = {"id": str(uuid.uuid4()), "email": user.email, "hashed_password": hashed_password, "created_at": now_iso()}
+    role = "Admin" if user.email == "meenuga.raghavendra@orchidsintl.edu.in" else "User"
+    new_user_data = {
+        "id": str(uuid.uuid4()), 
+        "email": user.email, 
+        "hashed_password": hashed_password, 
+        "role": role, 
+        "created_at": now_iso()
+    }
 
     try:
         response = client.table("users").insert(new_user_data).execute()
@@ -112,18 +124,51 @@ async def login_user(user: UserLogin):
         raise HTTPException(status_code=500, detail="Supabase client not initialized.")
 
     try:
-        response = client.table("users").select("id, email, hashed_password").eq("email", user.email).execute()
+        response = client.table("users").select("id, email, hashed_password, role").eq("email", user.email).execute()
         user_data = (response.data or [None])[0]
 
         if not user_data or not verify_password(user.password, user_data["hashed_password"]):
             raise HTTPException(status_code=401, detail="Incorrect email or password.")
         
-        # For simplicity, just return a success message. In a real app, this would return a JWT.
-        return {"message": "Login successful!", "user_id": user_data["id"]}
+        role = user_data.get("role", "User")
+        # Hardcoded override to ensure this specific user is always Admin
+        if user.email == "meenuga.raghavendra@orchidsintl.edu.in":
+            role = "Admin"
+
+        return {
+            "message": "Login successful!", 
+            "user_id": user_data["id"], 
+            "role": role
+        }
     except HTTPException as e:
         raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Supabase Login Error: {str(e)}")
+
+
+@app.get("/users", response_model=List[UserOut])
+async def list_users():
+    client = get_supabase_client()
+    if client:
+        try:
+            response = client.table("users").select("id, email, role, created_at").execute()
+            return response.data or []
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Fetch Error: {str(e)}")
+    return []
+
+
+@app.patch("/users/{user_id}/role")
+async def update_user_role(user_id: str, payload: RoleUpdateRequest):
+    client = get_supabase_client()
+    if client:
+        try:
+            client.table("users").update({"role": payload.role}).eq("id", user_id).execute()
+            return {"status": "success"}
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Update Error: {str(e)}")
+    
+    raise HTTPException(status_code=501, detail="Supabase not configured.")
 
 
 class PlantCreate(BaseModel):
