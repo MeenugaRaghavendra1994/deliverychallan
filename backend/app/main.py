@@ -26,6 +26,7 @@ load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 
 app = FastAPI(title="Delivery Challan API", version="1.0.0")
 
@@ -372,8 +373,10 @@ memory_store = InMemoryStore()
 
 
 def get_supabase_client():
-    if SUPABASE_URL and SUPABASE_KEY:
-        return create_client(SUPABASE_URL, SUPABASE_KEY)
+    # Use Service Role Key for backend administrative access to bypass RLS policies
+    key = SUPABASE_SERVICE_ROLE_KEY or SUPABASE_KEY
+    if SUPABASE_URL and key:
+        return create_client(SUPABASE_URL, key)
     return None
 
 
