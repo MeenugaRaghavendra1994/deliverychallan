@@ -11,7 +11,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Response, UploadFile, File, APIRouter
+from fastapi import FastAPI, HTTPException, Response, UploadFile, File, APIRouter, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr # Added EmailStr
 from reportlab.lib import colors
@@ -1198,3 +1198,26 @@ async def startup_event():
             logger.info("Startup DB check: Supabase connection successful.")
         except Exception as e:
             logger.error(f"Startup DB check failed: {e}")
+
+# Add a debug endpoint to inspect incoming ASGI scope and path mapping
+@router.get("/__debug")
+async def debug_request(request: Request):
+    """Return minimal request scope info to help diagnose path rewriting in Vercel."""
+    scope = request.scope.copy()
+    raw_path = scope.get("raw_path")
+    try:
+        raw_path_display = raw_path.decode() if isinstance(raw_path, (bytes, bytearray)) else str(raw_path)
+    except Exception:
+        raw_path_display = repr(raw_path)
+
+    info = {
+        "url_path": request.url.path,
+        "full_url": str(request.url),
+        "scope_path": scope.get("path"),
+        "root_path": scope.get("root_path"),
+        "raw_path": raw_path_display,
+        "method": scope.get("method"),
+        "headers": {k.decode() if isinstance(k, bytes) else k: v.decode() if isinstance(v, bytes) else v for k, v in scope.get("headers", [])},
+    }
+    logger.info(f"Debug request info: {info}")
+    return info
