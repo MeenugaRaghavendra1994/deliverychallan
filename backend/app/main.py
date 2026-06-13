@@ -1181,9 +1181,13 @@ def build_challan_pdf(challan: Dict[str, Any]) -> bytes:
     doc.build(story)
     return buffer.getvalue()
 
+@app.get("/api/health")
+async def api_health_check():
+    """Direct health check to verify Vercel routing."""
+    return {"status": "ok", "source": "direct_app_route"}
 
-# Mount router at root and under /api so requests forwarded either as "/plants" or "/api/plants" are handled
-app.include_router(router, tags=["API"])
+
+# Mount router under /api
 app.include_router(router, prefix="/api", tags=["API"])
 
 @app.on_event("startup")
