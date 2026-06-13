@@ -135,11 +135,14 @@ async def signup_user(user: UserCreate):
     try:
         response = client.table("users").insert(new_user_data).execute()
         if not response.data:
+            logger.error(f"Supabase insert returned no data for signup of {user.email}")
             raise HTTPException(status_code=500, detail="Failed to create user in Supabase.")
+        logger.info(f"User created successfully: {user.email}")
         return UserOut(**response.data[0])
     except Exception as e:
         if "duplicate key value violates unique constraint" in str(e):
             raise HTTPException(status_code=409, detail="Email already registered.")
+        logger.error(f"Signup error for {user.email}: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Supabase Signup Error: {str(e)}")
 
 @router.post("/auth/login")
