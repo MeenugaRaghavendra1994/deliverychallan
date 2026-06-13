@@ -609,11 +609,16 @@ export default function App() {
         body: JSON.stringify({ email: authEmail, password: authPassword }),
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
-        setAuthError(data.detail || "Authentication failed.");
+        const text = await response.text();
+        try {
+          const errorData = JSON.parse(text);
+          setAuthError(errorData.detail || "Authentication failed.");
+        } catch {
+          setAuthError(text || "Server returned an error.");
+        }
       } else {
+        const data = await response.json();
         setIsLoggedIn(true);
         setUserRole(data.role || "User");
         setLoggedInUserEmail(authEmail);
@@ -648,10 +653,16 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: resetEmail }),
       });
-      const data = await response.json();
       if (!response.ok) {
-        setAuthError(data.detail || "Failed to send reset link.");
+        const text = await response.text();
+        try {
+          const errorData = JSON.parse(text);
+          setAuthError(errorData.detail || "Failed to send reset link.");
+        } catch {
+          setAuthError(text || "Server error.");
+        }
       } else {
+        const data = await response.json();
         setStatus(data.message);
         setShowForgotPasswordForm(false);
         setShowResetPasswordForm(true);
@@ -673,10 +684,16 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: resetEmail, token: resetToken, new_password: newPassword }),
       });
-      const data = await response.json();
       if (!response.ok) {
-        setAuthError(data.detail || "Failed to reset password.");
+        const text = await response.text();
+        try {
+          const errorData = JSON.parse(text);
+          setAuthError(errorData.detail || "Failed to reset password.");
+        } catch {
+          setAuthError(text || "Server error.");
+        }
       } else {
+        const data = await response.json();
         setStatus(data.message);
         setShowResetPasswordForm(false);
         setAuthEmail(resetEmail); // Pre-fill email for login
