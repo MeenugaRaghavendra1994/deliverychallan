@@ -721,8 +721,7 @@ export default function App() {
         <div>
           <p className="eyebrow">Delivery Challan System</p>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h1>Create challans and manage plants and products from one place.</h1>
-            <button className="secondary" onClick={handleLogout} disabled={isLoading}>Logout</button>
+            <h1>Create challans and manage plants and products from one place.</h1>            
           </div>
           <p className="helper-text">This UI mirrors the workbook flow while storing master data in the backend and generating PDF challans.</p>
         </div>
