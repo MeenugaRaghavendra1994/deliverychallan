@@ -33,6 +33,11 @@ app = FastAPI(title="Delivery Challan API", version="1.0.0")
 router = APIRouter()
 
 
+@app.get("/")
+def root():
+    return {"message": "API Running at root"}
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
