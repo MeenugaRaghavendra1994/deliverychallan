@@ -1210,11 +1210,6 @@ async def startup_event():
     else:
         logger.error("Supabase Client: FAILED - Missing URL or API Key. Check Vercel Environment Variables.")
     logger.info("--- Startup Event Complete ---")
-    else:
-        logger.error("Startup DB check: Supabase client could not be initialized. Please check environment variables (SUPABASE_URL, SUPABASE_KEY, SUPABASE_SERVICE_ROLE_KEY).")
-    logger.info("Application startup event finished.")
-
-# Add a debug endpoint to inspect incoming ASGI scope and path mapping
 @router.get("/__debug")
 async def debug_request(request: Request):
     """Return minimal request scope info to help diagnose path rewriting in Vercel."""
