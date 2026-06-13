@@ -654,8 +654,7 @@ export default function App() {
       } else {
         setStatus(data.message);
         setShowForgotPasswordForm(false);
-        // Optionally, show a message to check email and then prompt for token/new password
-        // For now, we'll just go back to login and user can manually enter token if they have it
+        setShowResetPasswordForm(true);
       }
     } catch (error) {
       setAuthError(error.message);
