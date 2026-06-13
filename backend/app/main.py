@@ -409,6 +409,7 @@ def build_payload(record: Dict[str, Any]) -> Dict[str, Any]:
 @router.get("/health", tags=["System"])
 def health():
     client = get_supabase_client() 
+    logger.info("Health check endpoint hit via /api/health (router level)")
     db_status = "Not Initialized"
     db_error = None
     
@@ -1184,6 +1185,7 @@ def build_challan_pdf(challan: Dict[str, Any]) -> bytes:
 @app.get("/api/health")
 async def api_health_check():
     """Direct health check to verify Vercel routing."""
+    logger.info("Direct health check endpoint hit via /api/health (app level)")
     return {"status": "ok", "source": "direct_app_route"}
 
 
