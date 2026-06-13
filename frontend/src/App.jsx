@@ -603,31 +603,19 @@ export default function App() {
 
     const endpoint = showSignupForm ? "/auth/signup" : "/auth/login";
     try {
-      const response = await fetch(`${API_BASE}${endpoint}`, {
+      const data = await requestJson(endpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: authEmail, password: authPassword }),
       });
 
-      if (!response.ok) {
-        const text = await response.text();
-        try {
-          const errorData = JSON.parse(text);
-          setAuthError(errorData.detail || "Authentication failed.");
-        } catch {
-          setAuthError(text || "Server returned an error.");
-        }
-      } else {
-        const data = await response.json();
-        setIsLoggedIn(true);
-        setUserRole(data.role || "User");
-        setLoggedInUserEmail(authEmail);
-        setLoginTime(new Date().toLocaleString());
-        setAuthEmail("");
-        setAuthPassword("");
-        setAuthError("");
-        setStatus(showSignupForm ? "Signup successful! Please log in." : "Login successful!");
-      }
+      setIsLoggedIn(true);
+      setUserRole(data.role || "User");
+      setLoggedInUserEmail(authEmail);
+      setLoginTime(new Date().toLocaleString());
+      setAuthEmail("");
+      setAuthPassword("");
+      setAuthError("");
+      setStatus(showSignupForm ? "Signup successful! Please log in." : "Login successful!");
     } catch (error) {
       setAuthError(error.message);
     } finally {
@@ -648,25 +636,13 @@ export default function App() {
     setIsLoading(true);
     setAuthError("");
     try {
-      const response = await fetch(`${API_BASE}/auth/forgot-password`, {
+      const data = await requestJson("/auth/forgot-password", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: resetEmail }),
       });
-      if (!response.ok) {
-        const text = await response.text();
-        try {
-          const errorData = JSON.parse(text);
-          setAuthError(errorData.detail || "Failed to send reset link.");
-        } catch {
-          setAuthError(text || "Server error.");
-        }
-      } else {
-        const data = await response.json();
-        setStatus(data.message);
-        setShowForgotPasswordForm(false);
-        setShowResetPasswordForm(true);
-      }
+      setStatus(data.message);
+      setShowForgotPasswordForm(false);
+      setShowResetPasswordForm(true);
     } catch (error) {
       setAuthError(error.message);
     } finally {
@@ -679,25 +655,13 @@ export default function App() {
     setIsLoading(true);
     setAuthError("");
     try {
-      const response = await fetch(`${API_BASE}/auth/reset-password`, {
+      const data = await requestJson("/auth/reset-password", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: resetEmail, token: resetToken, new_password: newPassword }),
       });
-      if (!response.ok) {
-        const text = await response.text();
-        try {
-          const errorData = JSON.parse(text);
-          setAuthError(errorData.detail || "Failed to reset password.");
-        } catch {
-          setAuthError(text || "Server error.");
-        }
-      } else {
-        const data = await response.json();
-        setStatus(data.message);
-        setShowResetPasswordForm(false);
-        setAuthEmail(resetEmail); // Pre-fill email for login
-      }
+      setStatus(data.message);
+      setShowResetPasswordForm(false);
+      setAuthEmail(resetEmail); // Pre-fill email for login
     } catch (error) {
       setAuthError(error.message);
     } finally {
