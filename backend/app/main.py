@@ -406,7 +406,7 @@ def build_payload(record: Dict[str, Any]) -> Dict[str, Any]:
     return payload
 
 
-@app.get("/health")
+@router.get("/health")
 def health():
     client = get_supabase_client()
     db_status = "Not Initialized"
