@@ -182,9 +182,10 @@ class ChallanCreate(BaseModel):
     customer_pincode: Optional[str] = None
     customer_gstin: Optional[str] = None
     vehicle_no: Optional[str] = None
-    lr_no: Optional[str] = None
+    order_ref: Optional[str] = None
+    docket_no: Optional[str] = None
+    reason_for_dc: Optional[str] = None
     items: List[ChallanItem]
-    notes: Optional[str] = None
 
 
 class ChallanOut(ChallanCreate):
@@ -495,11 +496,11 @@ async def bulk_upload_challans(file: UploadFile = File(...)):
     except StopIteration:
         raise HTTPException(status_code=400, detail="Uploaded CSV file is empty.")
 
-    expected_header = ["from_plant_code", "to_plant_code", "sku", "item_name", "quantity", "rate"]
+    expected_header = ["from_plant_code", "to_plant_code", "sku", "item_name", "quantity", "rate", "order_ref", "docket_no", "reason_for_dc"]
     if [h.strip().lower() for h in header] != expected_header:
         raise HTTPException(status_code=400, detail=f"CSV header must be exactly: {', '.join(expected_header)}")
 
-    challans_grouped_by_plants: Dict[Tuple[str, str], List[Dict[str, Any]]] = defaultdict(list)
+    challans_grouped_by_metadata: Dict[Tuple[str, str, str, str, str], List[Dict[str, Any]]] = defaultdict(list)
     processing_errors = []
     line_num = 1
 
@@ -527,6 +528,9 @@ async def bulk_upload_challans(file: UploadFile = File(...)):
             item_name_csv = row[3].strip()
             quantity = float(row[4].strip())
             rate = float(row[5].strip())
+            order_ref = row[6].strip() if len(row) > 6 else ""
+            docket_no = row[7].strip() if len(row) > 7 else ""
+            reason_for_dc = row[8].strip() if len(row) > 8 else ""
 
             if not from_plant_code:
                 processing_errors.append(f"Line {line_num}: 'From Plant Code' is required.")
@@ -554,7 +558,10 @@ async def bulk_upload_challans(file: UploadFile = File(...)):
                 "sku": sku,
                 "item_name_csv": item_name_csv,
                 "quantity": quantity,
-                "rate": rate
+                "rate": rate,
+                "order_ref": order_ref,
+                "docket_no": docket_no,
+                "reason_for_dc": reason_for_dc
             })
         except ValueError as e:
             processing_errors.append(f"Line {line_num}: Data type error - {e}.")
@@ -599,6 +606,9 @@ async def bulk_upload_challans(file: UploadFile = File(...)):
         item_name_csv = row_data["item_name_csv"]
         quantity = row_data["quantity"]
         rate = row_data["rate"]
+        order_ref = row_data["order_ref"]
+        docket_no = row_data["docket_no"]
+        reason_for_dc = row_data["reason_for_dc"]
         line_num = row_data["line_num"]
 
         from_plant = plants_by_code.get(from_plant_code)
@@ -626,13 +636,13 @@ async def bulk_upload_challans(file: UploadFile = File(...)):
             amount=item_amount
         )
         
-        challans_grouped_by_plants[(from_plant["id"], to_plant["id"])].append(challan_item.model_dump())
+        challans_grouped_by_metadata[(from_plant["id"], to_plant["id"], order_ref, docket_no, reason_for_dc)].append(challan_item.model_dump())
 
     if processing_errors:
         raise HTTPException(status_code=400, detail={"message": "Data validation errors", "errors": processing_errors})
 
     created_challans = []
-    for (from_plant_id, to_plant_id), items_data in challans_grouped_by_plants.items():
+    for (from_plant_id, to_plant_id, order_ref, docket_no, reason_for_dc), items_data in challans_grouped_by_metadata.items():
         from_plant = plants_by_id[from_plant_id]
         to_plant = plants_by_id[to_plant_id]
 
@@ -654,9 +664,10 @@ async def bulk_upload_challans(file: UploadFile = File(...)):
             customer_pincode=to_plant.get("pincode"),
             customer_gstin=to_plant.get("gstin"),
             items=items_data,
-            notes="Bulk Upload Challan",
-            vehicle_no=None,
-            lr_no=None
+            order_ref=order_ref,
+            docket_no=docket_no,
+            reason_for_dc=reason_for_dc,
+            vehicle_no=None
         )
         
         try:
@@ -695,7 +706,7 @@ def export_product_wise_csv(start_date: Optional[str] = None, end_date: Optional
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["Challan No", "Date", "From Plant", "To Plant", "SKU", "Item Name", "UOM", "Qty", "Rate", "Amount"])
+    writer.writerow(["Challan No", "Date", "From Plant", "To Plant", "SKU", "Item Name", "UOM", "Qty", "Rate", "Amount", "Order Ref", "Docket No", "Reason for DC"])
     
     for c in challans:
         for item in c.get("items", []):
@@ -709,7 +720,10 @@ def export_product_wise_csv(start_date: Optional[str] = None, end_date: Optional
                 item.get("unit"),
                 item.get("quantity"),
                 item.get("rate"),
-                item.get("amount")
+                item.get("amount"),
+                c.get("order_ref"),
+                c.get("docket_no"),
+                c.get("reason_for_dc")
             ])
             
     return Response(
@@ -725,7 +739,7 @@ def download_template(template_name: str):
     templates = {
         "plants": "name,code,address,state,city,pincode,gstin,contact_person,phone,status\nPlant A,PA001,123 Main St,Karnataka,Bangalore,560001,29ABCDE1234F1Z5,John Doe,9876543210,Active",
         "products": "name,code,hsn_code,unit,description\nProduct X,PX001,123456,Nos,Description for Product X",
-        "challans": "from_plant_code,to_plant_code,sku,item_name,quantity,rate\nPA001,PB002,PX001,Product X,10,150.75"
+        "challans": "from_plant_code,to_plant_code,sku,item_name,quantity,rate,order_ref,docket_no,reason_for_dc\nPA001,PB002,PX001,Product X,10,150.75,REF-001,DOCK-99,Stock Transfer"
     }
     if template_name not in templates:
         raise HTTPException(status_code=404, detail="Template not found")
@@ -798,7 +812,7 @@ def build_challan_pdf(challan: Dict[str, Any]) -> bytes:
         [Paragraph(f"Pincode: {challan.get('from_plant_pincode', '')}", table_value_style), "", Paragraph(f"Pincode: {challan.get('customer_pincode', '')}", table_value_style), ""],
         [Paragraph(f"GSTIN: {challan.get('from_plant_gstin', '')}", table_value_style), "", Paragraph(f"GSTIN: {challan.get('customer_gstin', '')}", table_value_style), ""],
         [Paragraph(f"Branch Name: {challan.get('from_plant_branch', '')}", table_value_style), "", Paragraph(f"Branch Name: {challan.get('customer_name', '')}", table_value_style), ""],
-        [Paragraph(f"Order Ref: {challan.get('notes', '')}", table_value_style), "", Paragraph(f"Docket No: {challan.get('lr_no', '')}", table_value_style), ""]
+        [Paragraph(f"Order Ref: {challan.get('order_ref', '')}", table_value_style), "", Paragraph(f"Docket No: {challan.get('docket_no', '')}", table_value_style), ""]
     ]
     t_addr = Table(addr_data, colWidths=[95*mm, 5*mm, 95*mm, 0*mm])
     t_addr.setStyle(TableStyle([

@@ -18,8 +18,9 @@ class Challan(models.Model):
     customer_gstin = models.CharField(max_length=20, blank=True, null=True)
     
     vehicle_no = models.CharField(max_length=50, blank=True, null=True)
-    lr_no = models.CharField(max_length=50, blank=True, null=True)
-    notes = models.TextField(blank=True, null=True)
+    order_ref = models.CharField(max_length=50, blank=True, null=True)
+    docket_no = models.CharField(max_length=50, blank=True, null=True)
+    reason_for_dc = models.TextField(blank=True, null=True)
     
     total_amount = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     created_at = models.DateTimeField(auto_now_add=True)
