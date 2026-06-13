@@ -286,6 +286,20 @@ def create_plant(payload: PlantCreate) -> Dict[str, Any]:
     return memory_store.create_plant(item)
 
 
+@app.delete("/plants/{id}")
+def delete_plant(id: str):
+    client = get_supabase_client()
+    if client:
+        try:
+            client.table("plants").delete().eq("id", id).execute()
+            return {"status": "success"}
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Delete Error: {str(e)}")
+    
+    memory_store.plants = [p for p in memory_store.plants if p.get("id") != id]
+    return {"status": "success"}
+
+
 @app.post("/plants/bulk-upload", response_model=List[PlantOut])
 async def bulk_upload_plants(file: UploadFile = File(...)):
     if not file.filename.endswith(".csv"):
@@ -361,6 +375,20 @@ def create_product(payload: ProductCreate) -> Dict[str, Any]:
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Supabase Insert Error: {str(e)}")
     return memory_store.create_product(item)
+
+
+@app.delete("/products/{id}")
+def delete_product(id: str):
+    client = get_supabase_client()
+    if client:
+        try:
+            client.table("products").delete().eq("id", id).execute()
+            return {"status": "success"}
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Delete Error: {str(e)}")
+
+    memory_store.products = [p for p in memory_store.products if p.get("id") != id]
+    return {"status": "success"}
 
 
 @app.post("/products/bulk-upload", response_model=List[ProductOut])
@@ -465,6 +493,20 @@ def _create_challan_entry(challan_payload: Dict[str, Any]) -> Dict[str, Any]:
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Supabase Insert Error: {str(e)}")
     return memory_store.create_challan(challan_payload)
+
+
+@app.delete("/challans/{id}")
+def delete_challan(id: str):
+    client = get_supabase_client()
+    if client:
+        try:
+            client.table("challans").delete().eq("id", id).execute()
+            return {"status": "success"}
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Delete Error: {str(e)}")
+
+    memory_store.challans = [c for c in memory_store.challans if c.get("id") != id]
+    return {"status": "success"}
 
 
 @app.post("/challans", response_model=ChallanOut, tags=["Challans"])
@@ -730,6 +772,50 @@ def export_product_wise_csv(start_date: Optional[str] = None, end_date: Optional
         content=output.getvalue(),
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=product_wise_challan_report.csv"}
+    )
+
+
+@app.get("/reports/masters/plants/csv")
+def export_plants_master_csv():
+    client = get_supabase_client()
+    if client:
+        response = client.table("plants").select("*").order("name").execute()
+        data = response.data or []
+    else:
+        data = memory_store.list_plants()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Name", "Code", "Address", "City", "State", "Pincode", "GSTIN", "Contact", "Phone", "Status"])
+    for p in data:
+        writer.writerow([p.get("name"), p.get("code"), p.get("address"), p.get("city"), p.get("state"), p.get("pincode"), p.get("gstin"), p.get("contact_person"), p.get("phone"), p.get("status")])
+
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=plant_master_report.csv"}
+    )
+
+
+@app.get("/reports/masters/products/csv")
+def export_products_master_csv():
+    client = get_supabase_client()
+    if client:
+        response = client.table("products").select("*").order("name").execute()
+        data = response.data or []
+    else:
+        data = memory_store.list_products()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Name", "Code", "HSN Code", "Unit", "Description"])
+    for p in data:
+        writer.writerow([p.get("name"), p.get("code"), p.get("hsn_code"), p.get("unit"), p.get("description")])
+
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=product_master_report.csv"}
     )
 
 

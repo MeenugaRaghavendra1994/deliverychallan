@@ -277,6 +277,39 @@ export default function App() {
     }
   };
 
+  const handleDeletePlant = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this plant?")) return;
+    setIsLoading(true);
+    try {
+      await requestJson(`/plants/${id}`, { method: "DELETE" });
+      setPlants((current) => current.filter((p) => p.id !== id));
+      setStatus("Plant deleted.");
+    } catch (error) { setStatus(error.message); }
+    finally { setIsLoading(false); }
+  };
+
+  const handleDeleteProduct = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this product?")) return;
+    setIsLoading(true);
+    try {
+      await requestJson(`/products/${id}`, { method: "DELETE" });
+      setProducts((current) => current.filter((p) => p.id !== id));
+      setStatus("Product deleted.");
+    } catch (error) { setStatus(error.message); }
+    finally { setIsLoading(false); }
+  };
+
+  const handleDeleteChallan = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this challan? This action cannot be undone.")) return;
+    setIsLoading(true);
+    try {
+      await requestJson(`/challans/${id}`, { method: "DELETE" });
+      setChallans((current) => current.filter((c) => c.id !== id));
+      setStatus("Challan deleted.");
+    } catch (error) { setStatus(error.message); }
+    finally { setIsLoading(false); }
+  };
+
   const handleProductSubmit = async (event) => {
     event.preventDefault();
     setIsLoading(true);
@@ -665,6 +698,7 @@ export default function App() {
         <button className={activeTab === "create-challan" ? "" : "secondary"} onClick={() => setActiveTab("create-challan")}>Create Challan</button>
         <button className={activeTab === "dashboard" ? "" : "secondary"} onClick={() => setActiveTab("dashboard")}>Dashboard</button>
         <button className={activeTab === "reports" ? "" : "secondary"} onClick={() => setActiveTab("reports")}>Reports</button>
+        <button className={activeTab === "manage-data" ? "" : "secondary"} onClick={() => setActiveTab("manage-data")}>Manage Data</button>
       </nav>
 
       {activeTab === "masters" && (
@@ -696,7 +730,6 @@ export default function App() {
             </div>
             {plantErrors.length > 0 && <ul style={{ color: 'red', fontSize: '0.8rem' }}>{plantErrors.map((e, i) => <li key={i}>{e}</li>)}</ul>}
           </div>
-
         </article>
 
         <article className="card">
@@ -720,7 +753,6 @@ export default function App() {
             </div>
             {productErrors.length > 0 && <ul style={{ color: 'red', fontSize: '0.8rem' }}>{productErrors.map((e, i) => <li key={i}>{e}</li>)}</ul>}
           </div>
-
         </article>
       </section>
       )}
@@ -846,6 +878,52 @@ export default function App() {
             </div>
           </div>
           <button style={{ marginTop: '1.5rem' }} onClick={downloadReport}>Export Product-wise CSV</button>
+          
+          <h3 style={{ marginTop: '2rem' }}>Master Data Reports</h3>
+          <div className="row">
+            <button className="secondary" onClick={() => window.open(`${API_BASE}/reports/masters/plants/csv`, "_blank")}>Export Plant Master</button>
+            <button className="secondary" onClick={() => window.open(`${API_BASE}/reports/masters/products/csv`, "_blank")}>Export Product Master</button>
+          </div>
+        </section>
+      )}
+
+      {activeTab === "manage-data" && (
+        <section className="stack">
+          <article className="card">
+            <h2>Manage Plants</h2>
+            <div className="stack">
+              {plants.map(p => (
+                <div key={p.id} className="list-row">
+                  <span>{p.name} (Code: {p.code})</span>
+                  <button className="secondary" onClick={() => handleDeletePlant(p.id)}>Delete</button>
+                </div>
+              ))}
+            </div>
+          </article>
+
+          <article className="card">
+            <h2>Manage Products</h2>
+            <div className="stack">
+              {products.map(p => (
+                <div key={p.id} className="list-row">
+                  <span>{p.name} (SKU: {p.code})</span>
+                  <button className="secondary" onClick={() => handleDeleteProduct(p.id)}>Delete</button>
+                </div>
+              ))}
+            </div>
+          </article>
+
+          <article className="card">
+            <h2>Manage Challans</h2>
+            <div className="stack">
+              {challans.map(c => (
+                <div key={c.id} className="list-row">
+                  <span>{c.challan_number} - {c.customer_name} ({c.challan_date})</span>
+                  <button className="secondary" onClick={() => handleDeleteChallan(c.id)}>Delete</button>
+                </div>
+              ))}
+            </div>
+          </article>
         </section>
       )}
     </div>
