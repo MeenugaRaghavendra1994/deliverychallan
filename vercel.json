@@ -19,6 +19,10 @@
       "dest": "backend/app/main.py"
     },
     {
+      "src": "/api",
+      "dest": "backend/app/main.py"
+    },
+    {
       "handle": "filesystem"
     },
     {
