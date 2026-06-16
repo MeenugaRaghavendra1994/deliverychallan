@@ -14,6 +14,8 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Response, UploadFile, File, APIRouter, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr # Added EmailStr
+from reportlab.graphics.shapes import Drawing, Path, Line, String, Group
+from reportlab.lib.colors import HexColor
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
@@ -1106,6 +1108,48 @@ def download_challan_pdf(challan_id: str) -> Response:
     headers = {"Content-Disposition": f'attachment; filename="challan_{challan_id}.pdf"'}
     return Response(content=pdf_bytes, media_type="application/pdf", headers=headers)
 
+def create_sspl_logo():
+    """Creates the SSPL logo as a ReportLab Drawing object."""
+    # Original SVG size: 260 x 55. Target width: 140.
+    scale = 140 / 260.0
+    h = 55 * scale
+    w = 140
+    
+    d = Drawing(w, h)
+    g = Group()
+    g.scale(scale, scale)
+    
+    # SVG y is from top, RL y is from bottom. Canvas height = 55.
+    # Book Icon Left Page
+    p1 = Path(fillColor=HexColor("#F97316"), strokeColor=None)
+    p1.moveTo(8, 55-15)
+    p1.lineTo(22, 55-11)
+    p1.lineTo(22, 55-39)
+    p1.lineTo(8, 55-43)
+    p1.closePath()
+    g.add(p1)
+    
+    # Book Icon Right Page
+    p2 = Path(fillColor=HexColor("#FB923C"), strokeColor=None)
+    p2.moveTo(22, 55-11)
+    p2.lineTo(36, 55-15)
+    p2.lineTo(36, 55-43)
+    p2.lineTo(22, 55-39)
+    p2.closePath()
+    g.add(p2)
+    
+    # Middle line
+    g.add(Line(22, 55-11, 22, 55-39, strokeColor=HexColor("#FFFFFF"), strokeWidth=1.5))
+    
+    # SSPL Text
+    g.add(String(48, 55-26, "SSPL", fontName="Helvetica-Bold", fontSize=22, fillColor=HexColor("#F97316")))
+    
+    # Company Name Text
+    g.add(String(48, 55-43, "School Shop Private Limited", fontName="Helvetica", fontSize=10, fillColor=HexColor("#666666")))
+    
+    d.add(g)
+    return d
+
 
 def build_challan_pdf(challan: Dict[str, Any]) -> bytes:
     buffer = io.BytesIO()
@@ -1127,9 +1171,12 @@ def build_challan_pdf(challan: Dict[str, Any]) -> bytes:
 
     story = []
     
+    # Logo (Top Left)
+    story.append(create_sspl_logo())
+    story.append(Spacer(1, 5 * mm))
+    
     # Header
     story.append(Paragraph("DELIVERY CHALLAN", header_style))
-    story.append(Paragraph("SCHOOL SHOP PRIVATE LIMITED", header_style))
     story.append(Paragraph("STOCK TRANSFER NOTE", ParagraphStyle("Note", fontSize=11, leading=13, alignment=1, fontName="Helvetica-Bold", spaceAfter=10)))
 
     # Date and Challan No Row
