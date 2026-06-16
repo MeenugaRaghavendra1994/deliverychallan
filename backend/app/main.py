@@ -538,8 +538,17 @@ async def bulk_upload_plants(file: UploadFile = File(...)):
 
     client = get_supabase_client()
     if client and plants_to_insert:
-        response = client.table("plants").insert(plants_to_insert).execute()
-        return response.data
+        try:
+            response = client.table("plants").insert(plants_to_insert).execute()
+            return response.data
+        except Exception as e:
+            error_str = str(e)
+            if "duplicate key" in error_str.lower():
+                raise HTTPException(
+                    status_code=400, 
+                    detail="One or more plants have duplicate codes that already exist in the database or the uploaded file."
+                )
+            raise HTTPException(status_code=400, detail=f"Database error during bulk upload: {error_str}")
     elif not client:
         for p in plants_to_insert: memory_store.create_plant(p)
         return plants_to_insert
@@ -641,8 +650,17 @@ async def bulk_upload_products(file: UploadFile = File(...)):
 
     client = get_supabase_client()
     if client and products_to_insert:
-        response = client.table("products").insert(products_to_insert).execute()
-        return response.data
+        try:
+            response = client.table("products").insert(products_to_insert).execute()
+            return response.data
+        except Exception as e:
+            error_str = str(e)
+            if "duplicate key" in error_str.lower():
+                raise HTTPException(
+                    status_code=400, 
+                    detail="One or more products have duplicate codes (SKUs) that already exist in the database or the uploaded file."
+                )
+            raise HTTPException(status_code=400, detail=f"Database error during bulk upload: {error_str}")
     elif not client:
         for p in products_to_insert: memory_store.create_product(p)
         return products_to_insert

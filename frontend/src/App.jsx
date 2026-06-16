@@ -541,9 +541,10 @@ export default function App() {
 
       if (!response.ok) {
         const detail = data.detail || {};
-        const errs = detail.errors || [detail.message || (typeof detail === 'string' ? detail : null) || response.statusText];
+        const msg = (typeof detail === 'object') ? (detail.message || response.statusText) : (detail || response.statusText);
+        const errs = detail.errors || [msg];
         errorSetter(errs);
-        setStatus(detail.message || "Bulk upload failed.");
+        setStatus(msg);
       } else {
         setter((current) => [...data, ...current]);
         setStatus(`${successMsg}: ${data.length} records added.`);
@@ -585,9 +586,10 @@ export default function App() {
 
       if (!response.ok) {
         const detail = data.detail || {};
-        const errs = detail.errors || [detail.message || (typeof detail === 'string' ? detail : null) || response.statusText];
+        const msg = (typeof detail === 'object') ? (detail.message || response.statusText) : (detail || response.statusText);
+        const errs = detail.errors || [msg];
         setBulkUploadErrors(errs);
-        setStatus(`Bulk upload failed: ${detail.message || response.statusText}`);
+        setStatus(`Bulk upload failed: ${msg}`);
       } else {
         setChallans((current) => [...data, ...current]);
         setStatus(`Successfully created ${data.length} challans from bulk upload.`);
