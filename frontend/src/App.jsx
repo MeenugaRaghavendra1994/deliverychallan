@@ -218,16 +218,19 @@ export default function App() {
       headers: { "Content-Type": "application/json", ...(options.headers || {}) },
       ...options,
     });
+    const text = await response.text();
+    let data;
+    try { data = text ? JSON.parse(text) : {}; } catch { data = { detail: text }; }
+
     if (!response.ok) {
-      const text = await response.text();
-      try {
-        const errorData = JSON.parse(text);
-        throw new Error(errorData.detail.message || errorData.detail || response.statusText);
-      } catch {
-        throw new Error(text || response.statusText);
+      let msg = response.statusText || "Request failed";
+      const detail = data.detail;
+      if (detail) {
+        msg = (typeof detail === 'object') ? (detail.message || msg) : detail;
       }
+      throw new Error(msg);
     }
-    return response.json();
+    return data;
   };
 
   const loadPlants = async () => {
@@ -532,13 +535,16 @@ export default function App() {
         body: formData,
       });
 
+      const text = await response.text();
+      let data;
+      try { data = text ? JSON.parse(text) : {}; } catch { data = { detail: text }; }
+
       if (!response.ok) {
-        const errorData = await response.json();
-        const errs = errorData.detail?.errors || [errorData.detail?.message || response.statusText];
+        const detail = data.detail || {};
+        const errs = detail.errors || [detail.message || (typeof detail === 'string' ? detail : null) || response.statusText];
         errorSetter(errs);
-        setStatus("Bulk upload failed.");
+        setStatus(detail.message || "Bulk upload failed.");
       } else {
-        const data = await response.json();
         setter((current) => [...data, ...current]);
         setStatus(`${successMsg}: ${data.length} records added.`);
       }
@@ -573,18 +579,18 @@ export default function App() {
         body: formData,
       });
 
+      const text = await response.text();
+      let data;
+      try { data = text ? JSON.parse(text) : {}; } catch { data = { detail: text }; }
+
       if (!response.ok) {
-        const errorData = await response.json();
-        if (errorData.detail && errorData.detail.errors) {
-          setBulkUploadErrors(errorData.detail.errors);
-        } else {
-          setBulkUploadErrors([errorData.detail || response.statusText]);
-        }
-        setStatus(`Bulk upload failed: ${errorData.detail.message || response.statusText}`);
+        const detail = data.detail || {};
+        const errs = detail.errors || [detail.message || (typeof detail === 'string' ? detail : null) || response.statusText];
+        setBulkUploadErrors(errs);
+        setStatus(`Bulk upload failed: ${detail.message || response.statusText}`);
       } else {
-        const createdChallans = await response.json();
-        setChallans((current) => [...createdChallans, ...current]);
-        setStatus(`Successfully created ${createdChallans.length} challans from bulk upload.`);
+        setChallans((current) => [...data, ...current]);
+        setStatus(`Successfully created ${data.length} challans from bulk upload.`);
         setSelectedFile(null); // Clear selected file
         document.getElementById("bulk-upload-file-input").value = ""; // Clear file input
       }
@@ -631,7 +637,7 @@ export default function App() {
       setAuthEmail("");
       setAuthPassword("");
       setAuthError("");
-      setStatus(showSignupForm ? "Signup successful! Please log in." : "Login successful!");
+      setStatus(data.message || (showSignupForm ? "Signup successful! Please log in." : "Login successful!"));
     } catch (error) {
       setAuthError(error.message);
     } finally {

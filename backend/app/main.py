@@ -499,8 +499,11 @@ async def bulk_upload_plants(file: UploadFile = File(...)):
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files are supported.")
 
-    contents = await file.read()
-    csv_reader = csv.DictReader(io.StringIO(contents.decode('utf-8')))
+    try:
+        contents = await file.read()
+        csv_reader = csv.DictReader(io.StringIO(contents.decode('utf-8')))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to read CSV: {str(e)}")
     
     plants_to_insert = []
     errors = []
@@ -605,8 +608,11 @@ async def bulk_upload_products(file: UploadFile = File(...)):
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files are supported.")
 
-    contents = await file.read()
-    csv_reader = csv.DictReader(io.StringIO(contents.decode('utf-8')))
+    try:
+        contents = await file.read()
+        csv_reader = csv.DictReader(io.StringIO(contents.decode('utf-8')))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to read CSV: {str(e)}")
     
     products_to_insert = []
     errors = []
@@ -755,8 +761,11 @@ async def bulk_upload_challans(file: UploadFile = File(...)):
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files are supported.")
 
-    contents = await file.read()
-    csv_reader = csv.reader(io.StringIO(contents.decode('utf-8')))
+    try:
+        contents = await file.read()
+        csv_reader = csv.reader(io.StringIO(contents.decode('utf-8')))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to read CSV: {str(e)}")
     
     try:
         header = next(csv_reader) # Skip header row
