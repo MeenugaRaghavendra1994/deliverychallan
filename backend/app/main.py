@@ -725,7 +725,7 @@ def read_challans() -> List[Dict[str, Any]]:
 def get_next_challan_number() -> Dict[str, str]:
     """Calculates the next DC number based on SSPL prefix and starting sequence 1010767."""
     prefix = "SSPL"
-    start_num = 1010767
+    start_num = 1011455
     client = get_supabase_client()
     
     if client:
