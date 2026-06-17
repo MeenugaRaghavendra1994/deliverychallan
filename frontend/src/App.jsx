@@ -483,8 +483,18 @@ export default function App() {
       handleFromPlantChange(matchedPlant.id);
       setFromPlantSearch(`${matchedPlant.name} (${matchedPlant.code})`); // Set input to canonical name
     } else {
-      // If no exact match, clear the selected plant from the form
-      setChallanForm(prev => ({ ...prev, from_plant_id: "" }));
+      // If no exact match, clear the selected plant from the form AND its details
+      setChallanForm(prev => ({
+        ...prev,
+        from_plant_id: "",
+        from_plant_name: "",
+        from_plant_address: "",
+        from_plant_state: "",
+        from_plant_city: "",
+        from_plant_pincode: "",
+        from_plant_gstin: "",
+        from_plant_branch: "",
+      }));
     }
   };
 
@@ -503,8 +513,17 @@ export default function App() {
       handleChallanPlantChange(matchedPlant.id);
       setToPlantSearch(`${matchedPlant.name} (${matchedPlant.code})`); // Set input to canonical name
     } else {
-      // If no exact match, clear the selected plant from the form
-      setChallanForm(prev => ({ ...prev, plant_id: "" }));
+      // If no exact match, clear the selected plant from the form AND its details
+      setChallanForm(prev => ({
+        ...prev,
+        plant_id: "",
+        customer_name: "",
+        customer_address: "",
+        customer_state: "",
+        customer_city: "",
+        customer_pincode: "",
+        customer_gstin: "",
+      }));
     }
   };
 
