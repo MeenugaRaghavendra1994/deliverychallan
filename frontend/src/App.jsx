@@ -210,6 +210,8 @@ export default function App() {
   const [newPassword, setNewPassword] = useState("");
   const [fromPlantSearch, setFromPlantSearch] = useState("");
   const [toPlantSearch, setToPlantSearch] = useState("");
+  const [fromPlantDisplayOptions, setFromPlantDisplayOptions] = useState([]);
+  const [toPlantDisplayOptions, setToPlantDisplayOptions] = useState([]);
   const [loggedInUserEmail, setLoggedInUserEmail] = useState(""); // New state
   const [loginTime, setLoginTime] = useState(""); // New state
   const [users, setUsers] = useState([]);
@@ -236,25 +238,27 @@ export default function App() {
     return data;
   };
 
-  const loadPlants = async () => {
+  const loadPlants = async (searchTerm = "") => {
     setIsLoading(true);
     try {
-      const data = await requestJson("/plants");
-      setPlants(data);
+      const data = await requestJson(`/plants${searchTerm ? `?search=${searchTerm}` : ""}`);
+      return data;
     } catch (error) {
       setStatus(error.message);
+      return [];
     } finally {
       setIsLoading(false);
     }
   };
 
-  const loadProducts = async () => {
+  const loadProducts = async (searchTerm = "") => {
     setIsLoading(true);
     try {
-      const data = await requestJson("/products");
-      setProducts(data);
+      const data = await requestJson(`/products${searchTerm ? `?search=${searchTerm}` : ""}`);
+      return data;
     } catch (error) {
       setStatus(error.message);
+      return [];
     } finally {
       setIsLoading(false);
     }
@@ -301,7 +305,15 @@ export default function App() {
     if (isLoggedIn) {
       const fetchData = async () => {
         setIsLoading(true);
-        const tasks = [loadPlants(), loadProducts(), loadChallans()];
+        // Load all plants and products initially
+        const allPlants = await loadPlants();
+        const allProducts = await loadProducts();
+        setPlants(allPlants);
+        setFromPlantDisplayOptions(allPlants); // Initialize display options with all plants
+        setToPlantDisplayOptions(allPlants);   // Initialize display options with all plants
+        setProducts(allProducts);
+
+        const tasks = [loadChallans()]; // Only challans left to load
         if (userRole === "Admin") tasks.push(loadUsers());
         await Promise.all(tasks);
         setIsLoading(false);
@@ -442,6 +454,22 @@ export default function App() {
         return nextRow;
       }),
     );
+  };
+
+  const handleFromPlantSearchChange = async (term) => {
+    setFromPlantSearch(term);
+    if (term.length > 1) { // Only search if more than 1 character to avoid too many requests
+      const data = await loadPlants(term);
+      setFromPlantDisplayOptions(data);
+    } else { setFromPlantDisplayOptions(plants); } // Reset to all plants if search cleared
+  };
+
+  const handleToPlantSearchChange = async (term) => {
+    setToPlantSearch(term);
+    if (term.length > 1) {
+      const data = await loadPlants(term);
+      setToPlantDisplayOptions(data);
+    } else { setToPlantDisplayOptions(plants); } // Reset to all plants if search cleared
   };
 
   const handleFromPlantChange = (plantId) => {
@@ -1013,16 +1041,12 @@ export default function App() {
               <input 
                 placeholder="Search From Plant..." 
                 value={fromPlantSearch}
-                onChange={(e) => setFromPlantSearch(e.target.value)}
+                onChange={(e) => handleFromPlantSearchChange(e.target.value)}
                 style={{ marginBottom: '2px', fontSize: '0.8rem', padding: '0.4rem' }}
               />
               <select value={challanForm.from_plant_id} onChange={(event) => handleFromPlantChange(event.target.value)} required>
                 <option value="">Select From Plant</option>
-                {plants
-                  .filter(p => 
-                    p.name.toLowerCase().includes(fromPlantSearch.toLowerCase()) || 
-                    p.code.toLowerCase().includes(fromPlantSearch.toLowerCase())
-                  )
+                {fromPlantDisplayOptions
                   .map((plant) => (
                     <option value={plant.id} key={plant.id}>{plant.name} ({plant.code})</option>
                   ))
@@ -1033,16 +1057,12 @@ export default function App() {
               <input 
                 placeholder="Search To Plant..." 
                 value={toPlantSearch}
-                onChange={(e) => setToPlantSearch(e.target.value)}
+                onChange={(e) => handleToPlantSearchChange(e.target.value)}
                 style={{ marginBottom: '2px', fontSize: '0.8rem', padding: '0.4rem' }}
               />
               <select value={challanForm.plant_id} onChange={(event) => handleChallanPlantChange(event.target.value)} required>
                 <option value="">Select To Plant</option>
-                {plants
-                  .filter(p => 
-                    p.name.toLowerCase().includes(toPlantSearch.toLowerCase()) || 
-                    p.code.toLowerCase().includes(toPlantSearch.toLowerCase())
-                  )
+                {toPlantDisplayOptions
                   .map((plant) => (
                     <option value={plant.id} key={plant.id}>{plant.name} ({plant.code})</option>
                   ))}

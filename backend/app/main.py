@@ -441,14 +441,20 @@ def health():
 
 
 @router.get("/plants", response_model=List[PlantOut])
-def read_plants() -> List[Dict[str, Any]]:
+def read_plants(search: Optional[str] = None) -> List[Dict[str, Any]]:
     client = get_supabase_client()
     if client:
         try:
-            response = client.table("plants").select("*").order("created_at", desc=True).execute()
+            query = client.table("plants").select("*")
+            if search:
+                # Case-insensitive search on name or code
+                query = query.or_(f"name.ilike.%{search}%,code.ilike.%{search}%")
+            response = query.order("created_at", desc=True).execute()
             return response.data or []
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Supabase Fetch Error: {str(e)}")
+    if search:
+        return [p for p in memory_store.list_plants() if search.lower() in p.get("name", "").lower() or search.lower() in p.get("code", "").lower()]
     return memory_store.list_plants()
 
 
@@ -574,14 +580,20 @@ async def bulk_upload_plants(file: UploadFile = File(...)):
 
 
 @router.get("/products", response_model=List[ProductOut])
-def read_products() -> List[Dict[str, Any]]:
+def read_products(search: Optional[str] = None) -> List[Dict[str, Any]]:
     client = get_supabase_client()
     if client:
         try:
-            response = client.table("products").select("*").order("created_at", desc=True).execute()
+            query = client.table("products").select("*")
+            if search:
+                # Case-insensitive search on name or code
+                query = query.or_(f"name.ilike.%{search}%,code.ilike.%{search}%")
+            response = query.order("created_at", desc=True).execute()
             return response.data or []
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Supabase Fetch Error: {str(e)}")
+    if search:
+        return [p for p in memory_store.list_products() if search.lower() in p.get("name", "").lower() or search.lower() in p.get("code", "").lower()]
     return memory_store.list_products()
 
 
