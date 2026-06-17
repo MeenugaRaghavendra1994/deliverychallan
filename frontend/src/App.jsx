@@ -664,6 +664,7 @@ export default function App() {
         method: "POST",
         body: JSON.stringify({ email: resetEmail }),
       });
+      if (data.token) setResetToken(data.token);
       setStatus(data.message);
       setShowForgotPasswordForm(false);
       setShowResetPasswordForm(true);

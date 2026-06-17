@@ -201,7 +201,10 @@ async def forgot_password(request: ForgotPasswordRequest):
         # In a real application, you would send an email here
         print(f"Password reset token for {request.email}: {reset_token}")
 
-        return {"message": "If an account with that email exists, a password reset link has been sent."}
+        return {
+            "message": "If an account with that email exists, a password reset link has been sent.",
+            "token": reset_token  # Returning token for auto-fill in UI
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Forgot Password Error: {str(e)}")
 
