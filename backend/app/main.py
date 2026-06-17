@@ -190,10 +190,11 @@ async def forgot_password(request: ForgotPasswordRequest):
             return {"message": "If an account with that email exists, a password reset link has been sent."}
 
         reset_token = str(uuid.uuid4())
+        hashed_token = get_password_hash(reset_token)
         reset_token_expires_at = datetime.now(timezone.utc) + timedelta(hours=1) # Token valid for 1 hour
 
         client.table("users").update({
-            "reset_token": reset_token,
+            "reset_token": hashed_token,
             "reset_token_expires_at": reset_token_expires_at.isoformat()
         }).eq("id", user_data["id"]).execute()
 
@@ -220,7 +221,7 @@ async def reset_password(request: ResetPasswordRequest):
         response = client.table("users").select("id, reset_token, reset_token_expires_at").eq("email", request.email).execute()
         user_data = (response.data or [None])[0]
 
-        if not user_data or user_data.get("reset_token") != request.token:
+        if not user_data or not verify_password(request.token, user_data.get("reset_token", "")):
             raise HTTPException(status_code=400, detail="Invalid or expired reset token.")
 
         expires_at_str = user_data.get("reset_token_expires_at")
