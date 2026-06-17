@@ -507,7 +507,10 @@ async def bulk_upload_plants(file: UploadFile = File(...)):
 
     try:
         contents = await file.read()
-        text = contents.decode('utf-8-sig')
+        try:
+            text = contents.decode('utf-8-sig')
+        except UnicodeDecodeError:
+            text = contents.decode('latin-1')
         csv_reader = csv.DictReader(io.StringIO(text))
         if csv_reader.fieldnames:
             csv_reader.fieldnames = [h.strip().lower() for h in csv_reader.fieldnames]
@@ -628,7 +631,10 @@ async def bulk_upload_products(file: UploadFile = File(...)):
 
     try:
         contents = await file.read()
-        text = contents.decode('utf-8-sig')
+        try:
+            text = contents.decode('utf-8-sig')
+        except UnicodeDecodeError:
+            text = contents.decode('latin-1')
         csv_reader = csv.DictReader(io.StringIO(text))
         if csv_reader.fieldnames:
             csv_reader.fieldnames = [h.strip().lower() for h in csv_reader.fieldnames]
@@ -793,7 +799,10 @@ async def bulk_upload_challans(file: UploadFile = File(...)):
 
     try:
         contents = await file.read()
-        text = contents.decode('utf-8-sig')
+        try:
+            text = contents.decode('utf-8-sig')
+        except UnicodeDecodeError:
+            text = contents.decode('latin-1')
         csv_reader = csv.reader(io.StringIO(text))
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to read CSV: {str(e)}")
