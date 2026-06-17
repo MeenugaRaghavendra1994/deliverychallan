@@ -49,7 +49,7 @@ const styles = `
   .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
   .item-row { 
     display: grid; 
-    grid-template-columns: 2fr 1fr 1fr 1fr; 
+    grid-template-columns: 1fr 1.5fr 0.8fr 0.8fr 1fr; 
     gap: 0.8rem; 
     align-items: start; 
     padding: 0.5rem 0;
@@ -309,8 +309,8 @@ export default function App() {
         const allPlants = await loadPlants();
         const allProducts = await loadProducts();
         setPlants(allPlants);
-        setFromPlantDisplayOptions(allPlants); // Initialize display options with all plants
-        setToPlantDisplayOptions(allPlants);   // Initialize display options with all plants
+        setFromPlantDisplayOptions([]); // Start empty for typing search
+        setToPlantDisplayOptions([]);   // Start empty for typing search
         setProducts(allProducts);
 
         const tasks = [loadChallans()]; // Only challans left to load
@@ -431,9 +431,23 @@ export default function App() {
     setItemRows((current) =>
       current.map((row, rowIndex) => {
         if (rowIndex !== index) return row;
-        if (field === "searchTerm") {
-          return { ...row, searchTerm: value };
+        
+        if (field === "product_code") {
+          // Auto-fetch product name when code is typed
+          const foundProduct = products.find(p => p.code.toLowerCase() === value.toLowerCase());
+          if (foundProduct) {
+            return {
+              ...row,
+              product_code: value,
+              product_id: foundProduct.id,
+              product_name: foundProduct.name,
+              unit: foundProduct.unit || "Nos",
+              amount: Number(row.quantity || 0) * Number(row.rate || 0),
+            };
+          }
+          return { ...row, product_code: value, product_name: "", product_id: "" };
         }
+
         if (field === "product_id") {
           const selectedProduct = products.find((product) => product.id === value);
           return {
@@ -458,18 +472,18 @@ export default function App() {
 
   const handleFromPlantSearchChange = async (term) => {
     setFromPlantSearch(term);
-    if (term.length > 1) { // Only search if more than 1 character to avoid too many requests
+    if (term.length > 0) {
       const data = await loadPlants(term);
       setFromPlantDisplayOptions(data);
-    } else { setFromPlantDisplayOptions(plants); } // Reset to all plants if search cleared
+    } else { setFromPlantDisplayOptions([]); }
   };
 
   const handleToPlantSearchChange = async (term) => {
     setToPlantSearch(term);
-    if (term.length > 1) {
+    if (term.length > 0) {
       const data = await loadPlants(term);
       setToPlantDisplayOptions(data);
-    } else { setToPlantDisplayOptions(plants); } // Reset to all plants if search cleared
+    } else { setToPlantDisplayOptions([]); }
   };
 
   const handleFromPlantChange = (plantId) => {
@@ -1084,25 +1098,18 @@ export default function App() {
           {/* Challan Items */}
           {itemRows.map((row, index) => (
             <div className="item-row" key={`${row.product_id || "new"}-${index}`}>
-              <div className="stack">
-                <input 
-                  placeholder="Search SKU/Code..." 
-                  value={row.searchTerm}
-                  onChange={(event) => handleItemChange(index, "searchTerm", event.target.value)}
-                  style={{ marginBottom: '2px', fontSize: '0.8rem', padding: '0.4rem' }}
-                />
-                <select value={row.product_id} onChange={(event) => handleItemChange(index, "product_id", event.target.value)} required>
-                  <option value="">Select product</option>
-                  {products
-                    .filter(p => 
-                      p.code.toLowerCase().includes((row.searchTerm || "").toLowerCase()) ||
-                      p.name.toLowerCase().includes((row.searchTerm || "").toLowerCase())
-                    )
-                    .map((product) => (
-                      <option value={product.id} key={product.id}>{product.code} - {product.name}</option>
-                    ))}
-                </select>
-              </div>
+              <input 
+                placeholder="Type Code..." 
+                value={row.product_code}
+                onChange={(e) => handleItemChange(index, "product_code", e.target.value)}
+                required
+              />
+              <input 
+                placeholder="Product Name (Auto)" 
+                value={row.product_name} 
+                readOnly 
+                style={{ background: '#f1f5f9' }}
+              />
               <input type="number" value={row.quantity} onChange={(event) => handleItemChange(index, "quantity", event.target.value)} placeholder="Qty" required />
               <input type="number" value={row.rate} onChange={(event) => handleItemChange(index, "rate", event.target.value)} placeholder="Rate" required />
               <input type="number" value={row.amount} readOnly />

@@ -1255,7 +1255,7 @@ def build_challan_pdf(challan: Dict[str, Any]) -> bytes:
     story.append(Spacer(1, 5 * mm))
 
     # Items Table
-    item_rows = [["S.No", "SKU", "Item Name", "UOM", "QTY.", "Rate", "Amount"]]
+    item_rows = [["S.No", "Product Code", "Item Name", "UOM", "QTY.", "Rate", "Amount"]]
     total_qty = 0
     for idx, item in enumerate(challan.get("items", []), 1):
         qty = item.get("quantity", 0)
