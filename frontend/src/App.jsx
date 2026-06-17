@@ -238,10 +238,10 @@ export default function App() {
     return data;
   };
 
-  const loadPlants = async (searchTerm = "") => {
+  const loadAllPlants = async () => { // Renamed and modified to always load all
     setIsLoading(true);
     try {
-      const data = await requestJson(`/plants${searchTerm ? `?search=${searchTerm}` : ""}`);
+      const data = await requestJson("/plants"); // Fetch ALL plants
       return data;
     } catch (error) {
       setStatus(error.message);
@@ -251,10 +251,10 @@ export default function App() {
     }
   };
 
-  const loadProducts = async (searchTerm = "") => {
+  const loadAllProducts = async () => { // Renamed and modified to always load all
     setIsLoading(true);
     try {
-      const data = await requestJson(`/products${searchTerm ? `?search=${searchTerm}` : ""}`);
+      const data = await requestJson("/products"); // Fetch ALL products
       return data;
     } catch (error) {
       setStatus(error.message);
@@ -305,12 +305,10 @@ export default function App() {
     if (isLoggedIn) {
       const fetchData = async () => {
         setIsLoading(true);
-        // Load all plants and products initially
-        const allPlants = await loadPlants();
-        const allProducts = await loadProducts();
+        // Load all plants and products initially (full lists)
+        const allPlants = await loadAllPlants();
+        const allProducts = await loadAllProducts();
         setPlants(allPlants);
-        setFromPlantDisplayOptions([]); // Start empty for typing search
-        setToPlantDisplayOptions([]);   // Start empty for typing search
         setProducts(allProducts);
 
         const tasks = [loadChallans()]; // Only challans left to load
@@ -472,28 +470,41 @@ export default function App() {
 
   const handleFromPlantSearchChange = async (term) => {
     setFromPlantSearch(term);
-    if (term.length > 0) {
-      const data = await loadPlants(term);
-      setFromPlantDisplayOptions(data);
-      
-      // If the term exactly matches a name (code), trigger the selection logic
-      const matched = data.find(p => `${p.name} (${p.code})` === term);
-      if (matched) handleFromPlantChange(matched.id);
-    } else { 
-      setFromPlantDisplayOptions([]); 
+    // Filter from the full list of plants loaded into 'plants' state
+    const filtered = plants.filter(p =>
+      p.name.toLowerCase().includes(term.toLowerCase()) ||
+      p.code.toLowerCase().includes(term.toLowerCase())
+    );
+    setFromPlantDisplayOptions(filtered);
+
+    // Check if the typed term exactly matches a display option
+    const matchedPlant = filtered.find(p => `${p.name} (${p.code})`.toLowerCase() === term.toLowerCase());
+    if (matchedPlant) {
+      handleFromPlantChange(matchedPlant.id);
+      setFromPlantSearch(`${matchedPlant.name} (${matchedPlant.code})`); // Set input to canonical name
+    } else {
+      // If no exact match, clear the selected plant from the form
+      setChallanForm(prev => ({ ...prev, from_plant_id: "" }));
     }
   };
 
   const handleToPlantSearchChange = async (term) => {
     setToPlantSearch(term);
-    if (term.length > 0) {
-      const data = await loadPlants(term);
-      setToPlantDisplayOptions(data);
+    // Filter from the full list of plants loaded into 'plants' state
+    const filtered = plants.filter(p =>
+      p.name.toLowerCase().includes(term.toLowerCase()) ||
+      p.code.toLowerCase().includes(term.toLowerCase())
+    );
+    setToPlantDisplayOptions(filtered);
 
-      const matched = data.find(p => `${p.name} (${p.code})` === term);
-      if (matched) handleChallanPlantChange(matched.id);
-    } else { 
-      setToPlantDisplayOptions([]); 
+    // Check if the typed term exactly matches a display option
+    const matchedPlant = filtered.find(p => `${p.name} (${p.code})`.toLowerCase() === term.toLowerCase());
+    if (matchedPlant) {
+      handleChallanPlantChange(matchedPlant.id);
+      setToPlantSearch(`${matchedPlant.name} (${matchedPlant.code})`); // Set input to canonical name
+    } else {
+      // If no exact match, clear the selected plant from the form
+      setChallanForm(prev => ({ ...prev, plant_id: "" }));
     }
   };
 
