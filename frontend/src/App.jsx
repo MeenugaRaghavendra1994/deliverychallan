@@ -320,21 +320,6 @@ export default function App() {
     }
   }, [isLoggedIn, userRole]); // Re-run when login status or role changes
 
-  // Effect to check localStorage for login status on initial load
-  useEffect(() => {
-    const storedUserId = localStorage.getItem('userId');
-    const storedUserRole = localStorage.getItem('userRole');
-    const storedUserEmail = localStorage.getItem('userEmail');
-    const storedLoginTime = localStorage.getItem('loginTime');
-
-    if (storedUserId && storedUserRole && storedUserEmail && storedLoginTime) {
-      setIsLoggedIn(true);
-      setUserRole(storedUserRole);
-      setLoggedInUserEmail(storedUserEmail);
-      setLoginTime(storedLoginTime);
-    }
-  }, []); // Empty dependency array means it runs once on mount
-
   const handlePlantSubmit = async (event) => {
     event.preventDefault();
     setIsLoading(true);
@@ -486,50 +471,40 @@ export default function App() {
   const handleFromPlantSearchChange = async (term) => {
     setFromPlantSearch(term);
     // Filter from the full list of plants loaded into 'plants' state
-    const filteredOptions = plants.filter(p =>
+    const filtered = plants.filter(p =>
       p.name.toLowerCase().includes(term.toLowerCase()) ||
       p.code.toLowerCase().includes(term.toLowerCase())
     );
-    setFromPlantDisplayOptions(filteredOptions);
+    setFromPlantDisplayOptions(filtered);
 
-    // Find the plant that matches the current input term (by name, code, or combined)
-    const foundPlant = plants.find(p =>
-      p.name.toLowerCase() === term.toLowerCase() ||
-      p.code.toLowerCase() === term.toLowerCase() ||
-      `${p.name} (${p.code})`.toLowerCase() === term.toLowerCase()
-    );
-
-    if (foundPlant) {
-      handleFromPlantChange(foundPlant.id);
-      // Optionally set the input to the canonical name if an exact match was found
-      setFromPlantSearch(`${foundPlant.name} (${foundPlant.code})`);
+    // Check if the typed term exactly matches a display option
+    const matchedPlant = filtered.find(p => `${p.name} (${p.code})`.toLowerCase() === term.toLowerCase());
+    if (matchedPlant) {
+      handleFromPlantChange(matchedPlant.id);
+      setFromPlantSearch(`${matchedPlant.name} (${matchedPlant.code})`); // Set input to canonical name
     } else {
-      setChallanForm(prev => ({ ...prev, from_plant_id: "" })); // Clear if no match
+      // If no exact match, clear the selected plant from the form
+      setChallanForm(prev => ({ ...prev, from_plant_id: "" }));
     }
-
   };
 
   const handleToPlantSearchChange = async (term) => {
     setToPlantSearch(term);
     // Filter from the full list of plants loaded into 'plants' state
-    const filteredOptions = plants.filter(p =>
+    const filtered = plants.filter(p =>
       p.name.toLowerCase().includes(term.toLowerCase()) ||
       p.code.toLowerCase().includes(term.toLowerCase())
     );
-    setToPlantDisplayOptions(filteredOptions);
+    setToPlantDisplayOptions(filtered);
 
-    // Find the plant that matches the current input term (by name, code, or combined)
-    const foundPlant = plants.find(p =>
-      p.name.toLowerCase() === term.toLowerCase() ||
-      p.code.toLowerCase() === term.toLowerCase() ||
-      `${p.name} (${p.code})`.toLowerCase() === term.toLowerCase()
-    );
-
-    if (foundPlant) {
-      handleChallanPlantChange(foundPlant.id);
-      setFromPlantSearch(`${foundPlant.name} (${foundPlant.code})`);
+    // Check if the typed term exactly matches a display option
+    const matchedPlant = filtered.find(p => `${p.name} (${p.code})`.toLowerCase() === term.toLowerCase());
+    if (matchedPlant) {
+      handleChallanPlantChange(matchedPlant.id);
+      setToPlantSearch(`${matchedPlant.name} (${matchedPlant.code})`); // Set input to canonical name
     } else {
-      setChallanForm(prev => ({ ...prev, plant_id: "" })); // Clear if no match
+      // If no exact match, clear the selected plant from the form
+      setChallanForm(prev => ({ ...prev, plant_id: "" }));
     }
   };
 
@@ -727,11 +702,6 @@ export default function App() {
         method: "POST",
         body: JSON.stringify({ email: authEmail, password: authPassword }),
       });
-      // Store user info in localStorage
-      localStorage.setItem('userId', data.user_id);
-      localStorage.setItem('userRole', data.role || "User");
-      localStorage.setItem('userEmail', authEmail);
-      localStorage.setItem('loginTime', new Date().toLocaleString());
 
       setIsLoggedIn(true);
       setUserRole(data.role || "User");
@@ -749,11 +719,6 @@ export default function App() {
   };
 
   const handleLogout = () => {
-    // Clear user info from localStorage
-    localStorage.removeItem('userId');
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('userEmail');
-    localStorage.removeItem('loginTime');
     setIsLoggedIn(false);
     setUserRole("User");
     setLoggedInUserEmail("");
