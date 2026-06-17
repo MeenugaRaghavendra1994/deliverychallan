@@ -64,3 +64,7 @@ create table if not exists users (
     reset_token text,
     reset_token_expires_at timestamp with time zone
 );
+
+-- Ensure columns exist if the table was created before they were added to the create statement
+ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token text;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires_at timestamp with time zone;
