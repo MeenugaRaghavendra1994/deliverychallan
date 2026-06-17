@@ -51,7 +51,7 @@ const styles = `
     display: grid; 
     grid-template-columns: 2fr 1fr 1fr 1fr; 
     gap: 0.8rem; 
-    align-items: center; 
+    align-items: start; 
     padding: 0.5rem 0;
   }
   input, select, textarea { 
@@ -143,6 +143,7 @@ const emptyItem = () => ({
   quantity: "",
   rate: "",
   amount: 0,
+  searchTerm: "",
 });
 
 export default function App() {
@@ -207,6 +208,8 @@ export default function App() {
   const [resetEmail, setResetEmail] = useState("");
   const [resetToken, setResetToken] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [fromPlantSearch, setFromPlantSearch] = useState("");
+  const [toPlantSearch, setToPlantSearch] = useState("");
   const [loggedInUserEmail, setLoggedInUserEmail] = useState(""); // New state
   const [loginTime, setLoginTime] = useState(""); // New state
   const [users, setUsers] = useState([]);
@@ -416,6 +419,9 @@ export default function App() {
     setItemRows((current) =>
       current.map((row, rowIndex) => {
         if (rowIndex !== index) return row;
+        if (field === "searchTerm") {
+          return { ...row, searchTerm: value };
+        }
         if (field === "product_id") {
           const selectedProduct = products.find((product) => product.id === value);
           return {
@@ -426,6 +432,7 @@ export default function App() {
             unit: selectedProduct?.unit || "Nos",
             rate: row.rate,
             amount: Number(row.quantity || 0) * Number(row.rate || 0),
+            searchTerm: selectedProduct?.code || "",
           };
         }
         const nextRow = { ...row, [field]: value };
@@ -1002,18 +1009,45 @@ export default function App() {
             <input type="date" value={challanForm.challan_date} onChange={(event) => setChallanForm({ ...challanForm, challan_date: event.target.value })} required />
           </div>
           <div className="row">
-            <select value={challanForm.from_plant_id} onChange={(event) => handleFromPlantChange(event.target.value)} required>
-              <option value="">Select From Plant</option>
-              {plants.map((plant) => (
-                <option value={plant.id} key={plant.id}>{plant.name}</option>
-              ))}
-            </select>
-            <select value={challanForm.plant_id} onChange={(event) => handleChallanPlantChange(event.target.value)} required>
-              <option value="">Select To Plant</option>
-              {plants.map((plant) => (
-                <option value={plant.id} key={plant.id}>{plant.name}</option>
-              ))}
-            </select>
+            <div className="stack">
+              <input 
+                placeholder="Search From Plant..." 
+                value={fromPlantSearch}
+                onChange={(e) => setFromPlantSearch(e.target.value)}
+                style={{ marginBottom: '2px', fontSize: '0.8rem', padding: '0.4rem' }}
+              />
+              <select value={challanForm.from_plant_id} onChange={(event) => handleFromPlantChange(event.target.value)} required>
+                <option value="">Select From Plant</option>
+                {plants
+                  .filter(p => 
+                    p.name.toLowerCase().includes(fromPlantSearch.toLowerCase()) || 
+                    p.code.toLowerCase().includes(fromPlantSearch.toLowerCase())
+                  )
+                  .map((plant) => (
+                    <option value={plant.id} key={plant.id}>{plant.name} ({plant.code})</option>
+                  ))
+                }
+              </select>
+            </div>
+            <div className="stack">
+              <input 
+                placeholder="Search To Plant..." 
+                value={toPlantSearch}
+                onChange={(e) => setToPlantSearch(e.target.value)}
+                style={{ marginBottom: '2px', fontSize: '0.8rem', padding: '0.4rem' }}
+              />
+              <select value={challanForm.plant_id} onChange={(event) => handleChallanPlantChange(event.target.value)} required>
+                <option value="">Select To Plant</option>
+                {plants
+                  .filter(p => 
+                    p.name.toLowerCase().includes(toPlantSearch.toLowerCase()) || 
+                    p.code.toLowerCase().includes(toPlantSearch.toLowerCase())
+                  )
+                  .map((plant) => (
+                    <option value={plant.id} key={plant.id}>{plant.name} ({plant.code})</option>
+                  ))}
+              </select>
+            </div>
           </div>
           <div className="row">
             <input value={challanForm.customer_name} onChange={(event) => setChallanForm({ ...challanForm, customer_name: event.target.value })} placeholder="Customer name" required />
@@ -1030,12 +1064,25 @@ export default function App() {
           {/* Challan Items */}
           {itemRows.map((row, index) => (
             <div className="item-row" key={`${row.product_id || "new"}-${index}`}>
-              <select value={row.product_id} onChange={(event) => handleItemChange(index, "product_id", event.target.value)} required>
-                <option value="">Select product</option>
-                {products.map((product) => (
-                  <option value={product.id} key={product.id}>{product.name}</option>
-                ))}
-              </select>
+              <div className="stack">
+                <input 
+                  placeholder="Search SKU/Code..." 
+                  value={row.searchTerm}
+                  onChange={(event) => handleItemChange(index, "searchTerm", event.target.value)}
+                  style={{ marginBottom: '2px', fontSize: '0.8rem', padding: '0.4rem' }}
+                />
+                <select value={row.product_id} onChange={(event) => handleItemChange(index, "product_id", event.target.value)} required>
+                  <option value="">Select product</option>
+                  {products
+                    .filter(p => 
+                      p.code.toLowerCase().includes((row.searchTerm || "").toLowerCase()) ||
+                      p.name.toLowerCase().includes((row.searchTerm || "").toLowerCase())
+                    )
+                    .map((product) => (
+                      <option value={product.id} key={product.id}>{product.code} - {product.name}</option>
+                    ))}
+                </select>
+              </div>
               <input type="number" value={row.quantity} onChange={(event) => handleItemChange(index, "quantity", event.target.value)} placeholder="Qty" required />
               <input type="number" value={row.rate} onChange={(event) => handleItemChange(index, "rate", event.target.value)} placeholder="Rate" required />
               <input type="number" value={row.amount} readOnly />
