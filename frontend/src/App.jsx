@@ -475,7 +475,13 @@ export default function App() {
     if (term.length > 0) {
       const data = await loadPlants(term);
       setFromPlantDisplayOptions(data);
-    } else { setFromPlantDisplayOptions([]); }
+      
+      // If the term exactly matches a name (code), trigger the selection logic
+      const matched = data.find(p => `${p.name} (${p.code})` === term);
+      if (matched) handleFromPlantChange(matched.id);
+    } else { 
+      setFromPlantDisplayOptions([]); 
+    }
   };
 
   const handleToPlantSearchChange = async (term) => {
@@ -483,7 +489,12 @@ export default function App() {
     if (term.length > 0) {
       const data = await loadPlants(term);
       setToPlantDisplayOptions(data);
-    } else { setToPlantDisplayOptions([]); }
+
+      const matched = data.find(p => `${p.name} (${p.code})` === term);
+      if (matched) handleChallanPlantChange(matched.id);
+    } else { 
+      setToPlantDisplayOptions([]); 
+    }
   };
 
   const handleFromPlantChange = (plantId) => {
@@ -1052,35 +1063,32 @@ export default function App() {
           </div>
           <div className="row">
             <div className="stack">
-              <input 
-                placeholder="Search From Plant..." 
+              <input
+                placeholder="Type From Plant Name/Code..."
+                list="from-plants-list"
                 value={fromPlantSearch}
                 onChange={(e) => handleFromPlantSearchChange(e.target.value)}
-                style={{ marginBottom: '2px', fontSize: '0.8rem', padding: '0.4rem' }}
+                required
               />
-              <select value={challanForm.from_plant_id} onChange={(event) => handleFromPlantChange(event.target.value)} required>
-                <option value="">Select From Plant</option>
-                {fromPlantDisplayOptions
-                  .map((plant) => (
-                    <option value={plant.id} key={plant.id}>{plant.name} ({plant.code})</option>
-                  ))
-                }
-              </select>
+              <datalist id="from-plants-list">
+                {fromPlantDisplayOptions.map((plant) => (
+                  <option key={plant.id} value={`${plant.name} (${plant.code})`} />
+                ))}
+              </datalist>
             </div>
             <div className="stack">
-              <input 
-                placeholder="Search To Plant..." 
+              <input
+                placeholder="Type To Plant Name/Code..."
+                list="to-plants-list"
                 value={toPlantSearch}
                 onChange={(e) => handleToPlantSearchChange(e.target.value)}
-                style={{ marginBottom: '2px', fontSize: '0.8rem', padding: '0.4rem' }}
+                required
               />
-              <select value={challanForm.plant_id} onChange={(event) => handleChallanPlantChange(event.target.value)} required>
-                <option value="">Select To Plant</option>
-                {toPlantDisplayOptions
-                  .map((plant) => (
-                    <option value={plant.id} key={plant.id}>{plant.name} ({plant.code})</option>
-                  ))}
-              </select>
+              <datalist id="to-plants-list">
+                {toPlantDisplayOptions.map((plant) => (
+                  <option key={plant.id} value={`${plant.name} (${plant.code})`} />
+                ))}
+              </datalist>
             </div>
           </div>
           <div className="row">
