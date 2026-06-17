@@ -551,16 +551,22 @@ async def bulk_upload_plants(file: UploadFile = File(...)):
     client = get_supabase_client()
     if client and plants_to_insert:
         try:
-            response = client.table("plants").insert(plants_to_insert).execute()
+            # Deduplicate within the file and check against existing database records
+            unique_by_code = {p["code"]: p for p in plants_to_insert}
+            all_codes = list(unique_by_code.keys())
+            
+            existing_res = client.table("plants").select("code").in_("code", all_codes).execute()
+            existing_codes = {r["code"] for r in (existing_res.data or [])}
+            
+            final_to_insert = [p for code, p in unique_by_code.items() if code not in existing_codes]
+            
+            if not final_to_insert:
+                return []
+                
+            response = client.table("plants").insert(final_to_insert).execute()
             return response.data
         except Exception as e:
-            error_str = str(e)
-            if "duplicate key" in error_str.lower():
-                raise HTTPException(
-                    status_code=400, 
-                    detail="One or more plants have duplicate codes that already exist in the database or the uploaded file."
-                )
-            raise HTTPException(status_code=400, detail=f"Database error during bulk upload: {error_str}")
+            raise HTTPException(status_code=400, detail=f"Database error during bulk upload: {str(e)}")
     elif not client:
         for p in plants_to_insert: memory_store.create_plant(p)
         return plants_to_insert
@@ -669,16 +675,22 @@ async def bulk_upload_products(file: UploadFile = File(...)):
     client = get_supabase_client()
     if client and products_to_insert:
         try:
-            response = client.table("products").insert(products_to_insert).execute()
+            # Deduplicate within the file and check against existing database records
+            unique_by_code = {p["code"]: p for p in products_to_insert}
+            all_codes = list(unique_by_code.keys())
+            
+            existing_res = client.table("products").select("code").in_("code", all_codes).execute()
+            existing_codes = {r["code"] for r in (existing_res.data or [])}
+            
+            final_to_insert = [p for code, p in unique_by_code.items() if code not in existing_codes]
+            
+            if not final_to_insert:
+                return []
+                
+            response = client.table("products").insert(final_to_insert).execute()
             return response.data
         except Exception as e:
-            error_str = str(e)
-            if "duplicate key" in error_str.lower():
-                raise HTTPException(
-                    status_code=400, 
-                    detail="One or more products have duplicate codes (SKUs) that already exist in the database or the uploaded file."
-                )
-            raise HTTPException(status_code=400, detail=f"Database error during bulk upload: {error_str}")
+            raise HTTPException(status_code=400, detail=f"Database error during bulk upload: {str(e)}")
     elif not client:
         for p in products_to_insert: memory_store.create_product(p)
         return products_to_insert
