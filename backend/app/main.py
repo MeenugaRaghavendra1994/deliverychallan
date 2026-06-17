@@ -753,32 +753,64 @@ def _create_challan_entry(challan_payload: Dict[str, Any]) -> Dict[str, Any]:
     client = get_supabase_client()
     if client:
         try:
-            # Robustly fetch and populate plant/customer details from database
-            from_plant_id = challan_payload.get("from_plant_id")
-            to_plant_id = challan_payload.get("plant_id")
+            # 1. Resolve From Plant (by ID, Code, or Name)
+            fp_id = challan_payload.get("from_plant_id")
+            fp_name = challan_payload.get("from_plant_name")
+            fp = None
 
-            if from_plant_id:
-                fp_res = client.table("plants").select("*").eq("id", from_plant_id).execute()
-                if fp_res.data:
-                    fp = fp_res.data[0]
-                    challan_payload["from_plant_name"] = fp.get("name")
-                    challan_payload["from_plant_address"] = fp.get("address")
-                    challan_payload["from_plant_state"] = fp.get("state")
-                    challan_payload["from_plant_city"] = fp.get("city")
-                    challan_payload["from_plant_pincode"] = fp.get("pincode")
-                    challan_payload["from_plant_gstin"] = fp.get("gstin")
-                    challan_payload["from_plant_branch"] = fp.get("name")
+            if fp_id:
+                # Try ID (UUID)
+                try:
+                    uuid.UUID(fp_id)
+                    res = client.table("plants").select("*").eq("id", fp_id).execute()
+                    if res.data: fp = res.data[0]
+                except ValueError: pass
+                # Try Code
+                if not fp:
+                    res = client.table("plants").select("*").eq("code", fp_id).execute()
+                    if res.data: fp = res.data[0]
+            if not fp and fp_name: # Try Name fallback
+                res = client.table("plants").select("*").eq("name", fp_name).execute()
+                if res.data: fp = res.data[0]
 
-            if to_plant_id:
-                tp_res = client.table("plants").select("*").eq("id", to_plant_id).execute()
-                if tp_res.data:
-                    tp = tp_res.data[0]
-                    challan_payload["customer_name"] = tp.get("name")
-                    challan_payload["customer_address"] = tp.get("address")
-                    challan_payload["customer_state"] = tp.get("state")
-                    challan_payload["customer_city"] = tp.get("city")
-                    challan_payload["customer_pincode"] = tp.get("pincode")
-                    challan_payload["customer_gstin"] = tp.get("gstin")
+            if fp:
+                challan_payload["from_plant_id"] = fp["id"]
+                challan_payload["from_plant_name"] = fp.get("name")
+                challan_payload["from_plant_address"] = fp.get("address")
+                challan_payload["from_plant_state"] = fp.get("state")
+                challan_payload["from_plant_city"] = fp.get("city")
+                challan_payload["from_plant_pincode"] = fp.get("pincode")
+                challan_payload["from_plant_gstin"] = fp.get("gstin")
+                challan_payload["from_plant_branch"] = fp.get("name")
+
+            # 2. Resolve To Plant / Customer (by ID, Code, or Name)
+            tp_id = challan_payload.get("plant_id")
+            tp_name = challan_payload.get("customer_name")
+            tp = None
+
+            if tp_id:
+                # Try ID (UUID)
+                try:
+                    uuid.UUID(tp_id)
+                    res = client.table("plants").select("*").eq("id", tp_id).execute()
+                    if res.data: tp = res.data[0]
+                except ValueError: pass
+                # Try Code
+                if not tp:
+                    res = client.table("plants").select("*").eq("code", tp_id).execute()
+                    if res.data: tp = res.data[0]
+            if not tp and tp_name: # Try Name fallback
+                res = client.table("plants").select("*").eq("name", tp_name).execute()
+                if res.data: tp = res.data[0]
+
+            if tp:
+                challan_payload["plant_id"] = tp["id"]
+                challan_payload["customer_name"] = tp.get("name")
+                challan_payload["customer_address"] = tp.get("address")
+                challan_payload["customer_state"] = tp.get("state")
+                challan_payload["customer_city"] = tp.get("city")
+                challan_payload["customer_pincode"] = tp.get("pincode")
+                challan_payload["customer_gstin"] = tp.get("gstin")
         except Exception as e:
             logger.warning(f"Failed to auto-populate plant details: {str(e)}")
 

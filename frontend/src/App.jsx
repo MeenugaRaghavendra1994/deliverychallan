@@ -478,7 +478,10 @@ export default function App() {
     setFromPlantDisplayOptions(filtered);
 
     // Check if the typed term exactly matches a display option
-    const matchedPlant = filtered.find(p => `${p.name} (${p.code})`.toLowerCase() === term.toLowerCase());
+    const matchedPlant = plants.find(p => 
+      `${p.name} (${p.code})`.toLowerCase() === term.toLowerCase() ||
+      p.code.toLowerCase() === term.toLowerCase()
+    );
     if (matchedPlant) {
       handleFromPlantChange(matchedPlant.id);
       setFromPlantSearch(`${matchedPlant.name} (${matchedPlant.code})`); // Set input to canonical name
@@ -508,7 +511,10 @@ export default function App() {
     setToPlantDisplayOptions(filtered);
 
     // Check if the typed term exactly matches a display option
-    const matchedPlant = filtered.find(p => `${p.name} (${p.code})`.toLowerCase() === term.toLowerCase());
+    const matchedPlant = plants.find(p => 
+      `${p.name} (${p.code})`.toLowerCase() === term.toLowerCase() ||
+      p.code.toLowerCase() === term.toLowerCase()
+    );
     if (matchedPlant) {
       handleChallanPlantChange(matchedPlant.id);
       setToPlantSearch(`${matchedPlant.name} (${matchedPlant.code})`); // Set input to canonical name
