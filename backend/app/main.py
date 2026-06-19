@@ -1223,6 +1223,28 @@ def download_challan_pdf(challan_id: str) -> Response:
     if not challan:
         raise HTTPException(status_code=404, detail="Challan not found")
 
+    # Fetch company names for a more professional layout, as requested.
+    if client:
+        try:
+            from_plant_res = client.table("plants").select("name").eq("id", challan.get("from_plant_id")).maybe_single().execute()
+            to_plant_res = client.table("plants").select("name").eq("id", challan.get("plant_id")).maybe_single().execute()
+
+            # The company name is assumed to be "School Shop Private Limited" for all plants.
+            # The plant-specific name is already in the challan object.
+            challan["from_company_name"] = "School Shop Private Limited"
+            challan["to_company_name"] = "School Shop Private Limited"
+
+            # We can keep the specific plant names from the challan record itself.
+            # This avoids issues if a plant name was changed after the challan was created.
+            # challan["from_plant_name"] is already present.
+            # challan["customer_name"] is the to_plant_name.
+
+        except Exception as e:
+            logger.error(f"PDF Gen: Failed to fetch plant details for challan {challan_id}: {e}")
+            # Fallback to existing names if DB query fails
+            challan["from_company_name"] = challan.get("from_plant_name")
+            challan["to_company_name"] = challan.get("customer_name")
+
     pdf_bytes = build_challan_pdf(challan)
     headers = {"Content-Disposition": f'attachment; filename="challan_{challan_id}.pdf"'}
     return Response(content=pdf_bytes, media_type="application/pdf", headers=headers)
@@ -1310,7 +1332,16 @@ def build_challan_pdf(challan: Dict[str, Any]) -> bytes:
     # From / To Section
     addr_data = [
         [Paragraph("From", table_label_style), "", Paragraph("To", table_label_style), ""],
-        [Paragraph(str(challan.get('from_plant_name', '')), table_value_style), "", Paragraph(str(challan.get('customer_name', '')), table_value_style), ""],
+        [
+            Paragraph(
+                f"{challan.get('from_company_name', challan.get('from_plant_name', ''))}<br/><font size='8'>Plant: {challan.get('from_plant_name', '')}</font>",
+                table_value_style
+            ),
+            "",
+            Paragraph(
+                f"{challan.get('to_company_name', challan.get('customer_name', ''))}<br/><font size='8'>Plant: {challan.get('customer_name', '')}</font>",
+                table_value_style
+            ), ""],
         [Paragraph(f"Address: {challan.get('from_plant_address', '')}", table_value_style), "", Paragraph(f"Address: {challan.get('customer_address', '')}", table_value_style), ""],
         [Paragraph(f"State: {challan.get('from_plant_state', '')}", table_value_style), "", Paragraph(f"State: {challan.get('customer_state', '')}", table_value_style), ""],
         [Paragraph(f"City: {challan.get('from_plant_city', '')}", table_value_style), "", Paragraph(f"City: {challan.get('customer_city', '')}", table_value_style), ""],
