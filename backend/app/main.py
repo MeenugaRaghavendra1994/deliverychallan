@@ -770,50 +770,104 @@ def _create_challan_entry(challan_payload: Dict[str, Any]) -> Dict[str, Any]:
             fp_name_val = str(fp_name).strip() if fp_name else None
 
             if fp_id_val:
+                logger.debug(f"Resolving from plant using identifier: '{fp_id_val}'")
                 # Try ID (UUID)
                 try:
                     uuid.UUID(fp_id_val)
                     res = client.table("plants").select("*").eq("id", fp_id_val).execute()
                     if res.data:
                         fp = res.data[0]
-                except Exception:
-                    # not a UUID - continue with code/name attempts
-                    pass
+                        logger.debug(f"Found from plant by id: {fp.get('id')}")
+                except Exception as e:
+                    logger.debug(f"from plant id check not a UUID or lookup failed: {e}")
 
-                # Try exact Code
+                # Try exact Code (case-sensitive)
                 if not fp:
                     try:
+                        logger.debug(f"Trying exact code match for from plant: '{fp_id_val}'")
                         res = client.table("plants").select("*").eq("code", fp_id_val).execute()
                         if res.data:
                             fp = res.data[0]
-                    except Exception:
-                        pass
+                            logger.debug(f"Found from plant by exact code: {fp.get('code')}")
+                    except Exception as e:
+                        logger.warning(f"Error during exact code lookup for from plant: {e}")
 
-                # Try ilike (partial/case-insensitive) on code
+                # Try case-insensitive exact ilike (no wildcards)
                 if not fp:
                     try:
+                        logger.debug(f"Trying ilike (exact) code for from plant: '{fp_id_val}'")
+                        res = client.table("plants").select("*").ilike("code", fp_id_val).execute()
+                        if res.data:
+                            fp = res.data[0]
+                            logger.debug(f"Found from plant by ilike exact code: {fp.get('code')}")
+                    except Exception as e:
+                        logger.warning(f"Error during ilike exact code lookup for from plant: {e}")
+
+                # Try ilike with wildcards
+                if not fp:
+                    try:
+                        logger.debug(f"Trying ilike wildcard code for from plant: '%{fp_id_val}%'")
                         res = client.table("plants").select("*").ilike("code", f"%{fp_id_val}%").execute()
                         if res.data:
                             fp = res.data[0]
-                    except Exception:
-                        pass
+                            logger.debug(f"Found from plant by ilike wildcard code: {fp.get('code')}")
+                    except Exception as e:
+                        logger.warning(f"Error during ilike wildcard code lookup for from plant: {e}")
+
+                # Final fallback: try combined ilike on code and name using Supabase 'or_' which is more reliable
+                if not fp:
+                    try:
+                        q = fp_id_val.replace('%', '')
+                        logger.debug(f"Fallback search for from plant using or_ ilike with query: '{q}'")
+                        res = client.table("plants").select("*").or_(f"code.ilike.%{q}%,name.ilike.%{q}%").limit(1).execute()
+                        if res.data:
+                            fp = res.data[0]
+                            logger.debug(f"Found from plant by fallback or_ ilike: {fp.get('code')} / {fp.get('name')}")
+                    except Exception as e:
+                        logger.warning(f"Fallback or_ ilike search for from plant failed: {e}")
 
             # If not found by id/code, try by provided name
             if not fp and fp_name_val:
+                logger.debug(f"Resolving from plant by name: '{fp_name_val}'")
                 try:
                     res = client.table("plants").select("*").eq("name", fp_name_val).execute()
                     if res.data:
                         fp = res.data[0]
-                except Exception:
-                    pass
+                        logger.debug(f"Found from plant by exact name: {fp.get('name')}")
+                except Exception as e:
+                    logger.warning(f"Error during exact name lookup for from plant: {e}")
 
                 if not fp:
                     try:
+                        logger.debug(f"Trying ilike (exact) name for from plant: '{fp_name_val}'")
+                        res = client.table("plants").select("*").ilike("name", fp_name_val).execute()
+                        if res.data:
+                            fp = res.data[0]
+                            logger.debug(f"Found from plant by ilike exact name: {fp.get('name')}")
+                    except Exception as e:
+                        logger.warning(f"Error during ilike exact name lookup for from plant: {e}")
+
+                if not fp:
+                    try:
+                        logger.debug(f"Trying ilike wildcard name for from plant: '%{fp_name_val}%'")
                         res = client.table("plants").select("*").ilike("name", f"%{fp_name_val}%").execute()
                         if res.data:
                             fp = res.data[0]
-                    except Exception:
-                        pass
+                            logger.debug(f"Found from plant by ilike wildcard name: {fp.get('name')}")
+                    except Exception as e:
+                        logger.warning(f"Error during ilike wildcard name lookup for from plant: {e}")
+
+                # Fallback using or_ across code/name when name-based attempts fail
+                if not fp:
+                    try:
+                        qn = fp_name_val.replace('%','')
+                        logger.debug(f"Fallback search for from plant by name using or_ ilike with query: '{qn}'")
+                        res = client.table("plants").select("*").or_(f"code.ilike.%{qn}%,name.ilike.%{qn}%").limit(1).execute()
+                        if res.data:
+                            fp = res.data[0]
+                            logger.debug(f"Found from plant by fallback or_ ilike (name): {fp.get('code')} / {fp.get('name')}")
+                    except Exception as e:
+                        logger.warning(f"Fallback or_ ilike search for from plant by name failed: {e}")
 
             if fp:
                 challan_payload["from_plant_id"] = fp["id"]
@@ -834,45 +888,98 @@ def _create_challan_entry(challan_payload: Dict[str, Any]) -> Dict[str, Any]:
             tp_name_val = str(tp_name).strip() if tp_name else None
 
             if tp_id_val:
+                logger.debug(f"Resolving to plant using identifier: '{tp_id_val}'")
                 try:
                     uuid.UUID(tp_id_val)
                     res = client.table("plants").select("*").eq("id", tp_id_val).execute()
                     if res.data:
                         tp = res.data[0]
-                except Exception:
-                    pass
+                        logger.debug(f"Found to plant by id: {tp.get('id')}")
+                except Exception as e:
+                    logger.debug(f"to plant id check not a UUID or lookup failed: {e}")
 
                 if not tp:
                     try:
+                        logger.debug(f"Trying exact code match for to plant: '{tp_id_val}'")
                         res = client.table("plants").select("*").eq("code", tp_id_val).execute()
                         if res.data:
                             tp = res.data[0]
-                    except Exception:
-                        pass
+                            logger.debug(f"Found to plant by exact code: {tp.get('code')}")
+                    except Exception as e:
+                        logger.warning(f"Error during exact code lookup for to plant: {e}")
 
                 if not tp:
                     try:
+                        logger.debug(f"Trying ilike (exact) code for to plant: '{tp_id_val}'")
+                        res = client.table("plants").select("*").ilike("code", tp_id_val).execute()
+                        if res.data:
+                            tp = res.data[0]
+                            logger.debug(f"Found to plant by ilike exact code: {tp.get('code')}")
+                    except Exception as e:
+                        logger.warning(f"Error during ilike exact code lookup for to plant: {e}")
+
+                if not tp:
+                    try:
+                        logger.debug(f"Trying ilike wildcard code for to plant: '%{tp_id_val}%'")
                         res = client.table("plants").select("*").ilike("code", f"%{tp_id_val}%").execute()
                         if res.data:
                             tp = res.data[0]
-                    except Exception:
-                        pass
+                            logger.debug(f"Found to plant by ilike wildcard code: {tp.get('code')}")
+                    except Exception as e:
+                        logger.warning(f"Error during ilike wildcard code lookup for to plant: {e}")
+
+                # Fallback: or_ ilike across code and name
+                if not tp:
+                    try:
+                        qt = tp_id_val.replace('%','')
+                        logger.debug(f"Fallback search for to plant using or_ ilike with query: '{qt}'")
+                        res = client.table("plants").select("*").or_(f"code.ilike.%{qt}%,name.ilike.%{qt}%").limit(1).execute()
+                        if res.data:
+                            tp = res.data[0]
+                            logger.debug(f"Found to plant by fallback or_ ilike: {tp.get('code')} / {tp.get('name')}")
+                    except Exception as e:
+                        logger.warning(f"Fallback or_ ilike search for to plant failed: {e}")
 
             if not tp and tp_name_val:
+                logger.debug(f"Resolving to plant by name: '{tp_name_val}'")
                 try:
                     res = client.table("plants").select("*").eq("name", tp_name_val).execute()
                     if res.data:
                         tp = res.data[0]
-                except Exception:
-                    pass
+                        logger.debug(f"Found to plant by exact name: {tp.get('name')}")
+                except Exception as e:
+                    logger.warning(f"Error during exact name lookup for to plant: {e}")
 
                 if not tp:
                     try:
+                        logger.debug(f"Trying ilike (exact) name for to plant: '{tp_name_val}'")
+                        res = client.table("plants").select("*").ilike("name", tp_name_val).execute()
+                        if res.data:
+                            tp = res.data[0]
+                            logger.debug(f"Found to plant by ilike exact name: {tp.get('name')}")
+                    except Exception as e:
+                        logger.warning(f"Error during ilike exact name lookup for to plant: {e}")
+
+                if not tp:
+                    try:
+                        logger.debug(f"Trying ilike wildcard name for to plant: '%{tp_name_val}%'")
                         res = client.table("plants").select("*").ilike("name", f"%{tp_name_val}%").execute()
                         if res.data:
                             tp = res.data[0]
-                    except Exception:
-                        pass
+                            logger.debug(f"Found to plant by ilike wildcard name: {tp.get('name')}")
+                    except Exception as e:
+                        logger.warning(f"Error during ilike wildcard name lookup for to plant: {e}")
+
+                if not tp:
+                    try:
+                        qtn = tp_name_val.replace('%','')
+                        logger.debug(f"Fallback search for to plant by name using or_ ilike with query: '{qtn}'")
+                        res = client.table("plants").select("*").or_(f"code.ilike.%{qtn}%,name.ilike.%{qtn}%").limit(1).execute()
+                        if res.data:
+                            tp = res.data[0]
+                            logger.debug(f"Found to plant by fallback or_ ilike (name): {tp.get('code')} / {tp.get('name')}")
+                    except Exception as e:
+                        logger.warning(f"Fallback or_ ilike search for to plant by name failed: {e}")
 
             if tp:
                 challan_payload["plant_id"] = tp["id"]
