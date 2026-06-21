@@ -765,20 +765,55 @@ def _create_challan_entry(challan_payload: Dict[str, Any]) -> Dict[str, Any]:
             fp_name = challan_payload.get("from_plant_name")
             fp = None
 
-            if fp_id:
+            # normalize inputs
+            fp_id_val = str(fp_id).strip() if fp_id else None
+            fp_name_val = str(fp_name).strip() if fp_name else None
+
+            if fp_id_val:
                 # Try ID (UUID)
                 try:
-                    uuid.UUID(fp_id)
-                    res = client.table("plants").select("*").eq("id", fp_id).execute()
-                    if res.data: fp = res.data[0]
-                except ValueError: pass
-                # Try Code
+                    uuid.UUID(fp_id_val)
+                    res = client.table("plants").select("*").eq("id", fp_id_val).execute()
+                    if res.data:
+                        fp = res.data[0]
+                except Exception:
+                    # not a UUID - continue with code/name attempts
+                    pass
+
+                # Try exact Code
                 if not fp:
-                    res = client.table("plants").select("*").eq("code", fp_id).execute()
-                    if res.data: fp = res.data[0]
-            if not fp and fp_name: # Try Name fallback
-                res = client.table("plants").select("*").eq("name", fp_name).execute()
-                if res.data: fp = res.data[0]
+                    try:
+                        res = client.table("plants").select("*").eq("code", fp_id_val).execute()
+                        if res.data:
+                            fp = res.data[0]
+                    except Exception:
+                        pass
+
+                # Try ilike (partial/case-insensitive) on code
+                if not fp:
+                    try:
+                        res = client.table("plants").select("*").ilike("code", f"%{fp_id_val}%").execute()
+                        if res.data:
+                            fp = res.data[0]
+                    except Exception:
+                        pass
+
+            # If not found by id/code, try by provided name
+            if not fp and fp_name_val:
+                try:
+                    res = client.table("plants").select("*").eq("name", fp_name_val).execute()
+                    if res.data:
+                        fp = res.data[0]
+                except Exception:
+                    pass
+
+                if not fp:
+                    try:
+                        res = client.table("plants").select("*").ilike("name", f"%{fp_name_val}%").execute()
+                        if res.data:
+                            fp = res.data[0]
+                    except Exception:
+                        pass
 
             if fp:
                 challan_payload["from_plant_id"] = fp["id"]
@@ -795,20 +830,49 @@ def _create_challan_entry(challan_payload: Dict[str, Any]) -> Dict[str, Any]:
             tp_name = challan_payload.get("customer_name")
             tp = None
 
-            if tp_id:
-                # Try ID (UUID)
+            tp_id_val = str(tp_id).strip() if tp_id else None
+            tp_name_val = str(tp_name).strip() if tp_name else None
+
+            if tp_id_val:
                 try:
-                    uuid.UUID(tp_id)
-                    res = client.table("plants").select("*").eq("id", tp_id).execute()
-                    if res.data: tp = res.data[0]
-                except ValueError: pass
-                # Try Code
+                    uuid.UUID(tp_id_val)
+                    res = client.table("plants").select("*").eq("id", tp_id_val).execute()
+                    if res.data:
+                        tp = res.data[0]
+                except Exception:
+                    pass
+
                 if not tp:
-                    res = client.table("plants").select("*").eq("code", tp_id).execute()
-                    if res.data: tp = res.data[0]
-            if not tp and tp_name: # Try Name fallback
-                res = client.table("plants").select("*").eq("name", tp_name).execute()
-                if res.data: tp = res.data[0]
+                    try:
+                        res = client.table("plants").select("*").eq("code", tp_id_val).execute()
+                        if res.data:
+                            tp = res.data[0]
+                    except Exception:
+                        pass
+
+                if not tp:
+                    try:
+                        res = client.table("plants").select("*").ilike("code", f"%{tp_id_val}%").execute()
+                        if res.data:
+                            tp = res.data[0]
+                    except Exception:
+                        pass
+
+            if not tp and tp_name_val:
+                try:
+                    res = client.table("plants").select("*").eq("name", tp_name_val).execute()
+                    if res.data:
+                        tp = res.data[0]
+                except Exception:
+                    pass
+
+                if not tp:
+                    try:
+                        res = client.table("plants").select("*").ilike("name", f"%{tp_name_val}%").execute()
+                        if res.data:
+                            tp = res.data[0]
+                    except Exception:
+                        pass
 
             if tp:
                 challan_payload["plant_id"] = tp["id"]
