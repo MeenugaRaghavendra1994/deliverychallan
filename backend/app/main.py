@@ -595,12 +595,12 @@ def read_products(search: Optional[str] = None, limit: int = 10) -> List[Dict[st
                 query = query.or_(f"name.ilike.%{search}%,code.ilike.%{search}%")
                 response = query.order("created_at", desc=True).execute()
                 return response.data or []
-+
-+            # No search -> limit to top `limit` results
-+            response = query.order("created_at", desc=True).limit(limit).execute()
-+            return response.data or []
-         except Exception as e:
-             raise HTTPException(status_code=500, detail=f"Supabase Fetch Error: {str(e)}")
+
+            # No search -> limit to top `limit` results
+            response = query.order("created_at", desc=True).limit(limit).execute()
+            return response.data or []
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Supabase Fetch Error: {str(e)}")
     if search:
         return [p for p in memory_store.list_products() if search.lower() in p.get("name", "").lower() or search.lower() in p.get("code", "").lower()]
     
@@ -1237,7 +1237,7 @@ def download_challan_pdf(challan_id: str) -> Response:
             to_plant_res = client.table("plants").select("name").eq("id", challan.get("plant_id")).maybe_single().execute()
 
             # The company name is assumed to be "School Shop Private Limited" for all plants.
-            # The plant-specific name is already in the challan object.
+            # The plant-specific name is already in the challan object itself.
             challan["from_company_name"] = "School Shop Private Limited"
             challan["to_company_name"] = "School Shop Private Limited"
 
