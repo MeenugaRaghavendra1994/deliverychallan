@@ -441,21 +441,26 @@ def health():
 
 
 @router.get("/plants", response_model=List[PlantOut])
-def read_plants(search: Optional[str] = None) -> List[Dict[str, Any]]:
+def read_plants(search: Optional[str] = None, limit: int = 10) -> List[Dict[str, Any]]:
     client = get_supabase_client()
     if client:
         try:
             query = client.table("plants").select("*")
             if search:
-                # Case-insensitive search on name or code
+                # Case-insensitive search on name or code -> return full search results
                 query = query.or_(f"name.ilike.%{search}%,code.ilike.%{search}%")
-            response = query.order("created_at", desc=True).execute()
+                response = query.order("created_at", desc=True).execute()
+                return response.data or []
+
+            # No search -> limit to top `limit` results to avoid huge payloads
+            response = query.order("created_at", desc=True).limit(limit).execute()
             return response.data or []
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Supabase Fetch Error: {str(e)}")
     if search:
         return [p for p in memory_store.list_plants() if search.lower() in p.get("name", "").lower() or search.lower() in p.get("code", "").lower()]
-    return memory_store.list_plants()
+    
+    return memory_store.list_plants()[:limit]
 
 
 @router.post("/plants", response_model=PlantOut)
@@ -580,21 +585,26 @@ async def bulk_upload_plants(file: UploadFile = File(...)):
 
 
 @router.get("/products", response_model=List[ProductOut])
-def read_products(search: Optional[str] = None) -> List[Dict[str, Any]]:
+def read_products(search: Optional[str] = None, limit: int = 10) -> List[Dict[str, Any]]:
     client = get_supabase_client()
     if client:
         try:
             query = client.table("products").select("*")
             if search:
-                # Case-insensitive search on name or code
+                # Case-insensitive search on name or code -> return full search results
                 query = query.or_(f"name.ilike.%{search}%,code.ilike.%{search}%")
-            response = query.order("created_at", desc=True).execute()
-            return response.data or []
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Supabase Fetch Error: {str(e)}")
+                response = query.order("created_at", desc=True).execute()
+                return response.data or []
++
++            # No search -> limit to top `limit` results
++            response = query.order("created_at", desc=True).limit(limit).execute()
++            return response.data or []
+         except Exception as e:
+             raise HTTPException(status_code=500, detail=f"Supabase Fetch Error: {str(e)}")
     if search:
         return [p for p in memory_store.list_products() if search.lower() in p.get("name", "").lower() or search.lower() in p.get("code", "").lower()]
-    return memory_store.list_products()
+    
+    return memory_store.list_products()[:limit]
 
 
 @router.post("/products", response_model=ProductOut)
@@ -710,42 +720,16 @@ async def bulk_upload_products(file: UploadFile = File(...)):
 
 
 @router.get("/challans", response_model=List[ChallanOut])
-def read_challans() -> List[Dict[str, Any]]:
+def read_challans(limit: int = 10) -> List[Dict[str, Any]]:
     client = get_supabase_client()
     if client:
         try:
-            response = client.table("challans").select("*").order("created_at", desc=True).execute()
+            # Default to latest `limit` challans to prevent huge responses
+            response = client.table("challans").select("*").order("created_at", desc=True).limit(limit).execute()
             return response.data or []
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Supabase Fetch Error: {str(e)}")
-    return memory_store.list_challans()
-
-
-@router.get("/challans/next-number")
-def get_next_challan_number() -> Dict[str, str]:
-    """Calculates the next DC number based on SSPL prefix and starting sequence 1010767."""
-    prefix = "SSPL"
-    start_num = 1011455
-    client = get_supabase_client()
-    
-    if client:
-        try:
-            # Fetch existing numbers to find the highest one
-            response = client.table("challans").select("challan_number").ilike("challan_number", f"{prefix}%").execute()
-            if response.data:
-                numeric_values = []
-                for row in response.data:
-                    num_str = row["challan_number"][len(prefix):]
-                    if num_str.isdigit():
-                        numeric_values.append(int(num_str))
-                
-                if numeric_values:
-                    next_val = max(max(numeric_values) + 1, start_num)
-                    return {"next_number": f"{prefix}{next_val}"}
-        except Exception:
-            pass
-            
-    return {"next_number": f"{prefix}{start_num}"}
+    return memory_store.list_challans()[:limit]
 
 
 def _create_challan_entry(challan_payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -822,6 +806,10 @@ def _create_challan_entry(challan_payload: Dict[str, Any]) -> Dict[str, Any]:
     challan_payload["id"] = str(uuid.uuid4())
     challan_payload["created_at"] = now_iso()
     challan_payload["total_amount"] = round(sum(item["quantity"] * item["rate"] for item in challan_payload.get("items", [])), 2)
+    # Ensure cancelled metadata exists and defaults to False so cancelled numbers are retained
+    challan_payload.setdefault("cancelled", False)
+    challan_payload.setdefault("cancelled_at", None)
+    challan_payload.setdefault("cancel_reason", None)
 
     if client:
         try:
@@ -836,31 +824,48 @@ def _create_challan_entry(challan_payload: Dict[str, Any]) -> Dict[str, Any]:
 
 @router.delete("/challans/{id}")
 def delete_challan(id: str):
+    # Soft-cancel a challan instead of deleting it so we retain its number and history.
     client = get_supabase_client()
+    cancel_meta = {"cancelled": True, "cancelled_at": now_iso()}
     if client:
         try:
-            client.table("challans").delete().eq("id", id).execute()
-            return {"status": "success"}
+            client.table("challans").update(cancel_meta).eq("id", id).execute()
+            return {"status": "success", "cancelled": True}
         except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Delete Error: {str(e)}")
+            raise HTTPException(status_code=400, detail=f"Cancel Error: {str(e)}")
 
-    memory_store.challans = [c for c in memory_store.challans if c.get("id") != id]
-    return {"status": "success"}
+    # In-memory store: mark the challan as cancelled
+    found = False
+    for c in memory_store.challans:
+        if c.get("id") == id:
+            c.update(cancel_meta)
+            found = True
+            break
+    if not found:
+        raise HTTPException(status_code=404, detail="Challan not found")
+
+    return {"status": "success", "cancelled": True}
 
 
 @router.post("/challans/bulk-delete")
 def bulk_delete_challans(payload: BulkDeleteRequest):
+    # Bulk-cancel challans instead of removing them
     client = get_supabase_client()
+    cancel_meta = {"cancelled": True, "cancelled_at": now_iso()}
     if client:
         try:
-            client.table("challans").delete().in_("id", payload.ids).execute()
+            client.table("challans").update(cancel_meta).in_("id", payload.ids).execute()
             return {"status": "success", "count": len(payload.ids)}
         except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Bulk Delete Error: {str(e)}")
+            raise HTTPException(status_code=400, detail=f"Bulk Cancel Error: {str(e)}")
 
-    ids_to_del = set(payload.ids)
-    memory_store.challans = [c for c in memory_store.challans if c.get("id") not in ids_to_del]
-    return {"status": "success", "count": len(payload.ids)}
+    ids_to_cancel = set(payload.ids)
+    count = 0
+    for c in memory_store.challans:
+        if c.get("id") in ids_to_cancel and not c.get("cancelled"):
+            c.update(cancel_meta)
+            count += 1
+    return {"status": "success", "count": count}
 
 
 @router.post("/challans", response_model=ChallanOut, tags=["Challans"])
@@ -1121,8 +1126,9 @@ def export_product_wise_csv(start_date: Optional[str] = None, end_date: Optional
 
     output = io.StringIO()
     writer = csv.writer(output) # New field
-    writer.writerow(["Challan No", "Date", "From Plant", "To Plant", "SKU", "Item Name", "UOM", "Qty", "Rate", "Amount", "Order Ref", "Docket No", "Reason for DC", "Created By"])
-    
+    # Include a 'Cancelled' column so reports reflect cancellation status
+    writer.writerow(["Challan No", "Date", "From Plant", "To Plant", "SKU", "Item Name", "UOM", "Qty", "Rate", "Amount", "Order Ref", "Docket No", "Reason for DC", "Cancelled", "Created By"])
+     
     for c in challans:
         for item in c.get("items", []):
             writer.writerow([
@@ -1139,8 +1145,9 @@ def export_product_wise_csv(start_date: Optional[str] = None, end_date: Optional
                 c.get("order_ref"),
                 c.get("docket_no"),
                 c.get("reason_for_dc"),
+                str(bool(c.get("cancelled", False))),
                 c.get("created_by") # New field
-            ])
+             ])
             
     return Response(
         content=output.getvalue(),
