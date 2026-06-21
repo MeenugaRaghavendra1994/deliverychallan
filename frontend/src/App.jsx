@@ -1248,7 +1248,7 @@ export default function App() {
               <input 
                 placeholder="Search Plants by name or code..." 
                 value={plantManageSearch} 
-                onChange={(e) => setPlantManageSearch(e.target.value)} 
+                onChange={(e) => { setPlantManageSearch(e.target.value); searchPlantsManage(e.target.value); }} 
               />
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <p className="helper-text">{selectedPlants.size} selected</p>
@@ -1284,7 +1284,7 @@ export default function App() {
               <input 
                 placeholder="Search Products by name or SKU..." 
                 value={productManageSearch} 
-                onChange={(e) => setProductManageSearch(e.target.value)} 
+                onChange={(e) => { setProductManageSearch(e.target.value); searchProductsManage(e.target.value); }} 
               />
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <p className="helper-text">{selectedProducts.size} selected</p>
@@ -1320,7 +1320,7 @@ export default function App() {
               <input 
                 placeholder="Search Challans by Number or Customer..." 
                 value={challanManageSearch} 
-                onChange={(e) => setChallanManageSearch(e.target.value)} 
+                onChange={(e) => { setChallanManageSearch(e.target.value); searchChallansManage(e.target.value); }} 
               />
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <p className="helper-text">{selectedChallans.size} selected</p>
