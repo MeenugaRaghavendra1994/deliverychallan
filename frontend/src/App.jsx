@@ -1261,21 +1261,19 @@ export default function App() {
               </div>
             </div>
             <div className="stack">
-              {plants
-                .filter(p => p.name.toLowerCase().includes(plantManageSearch.toLowerCase()) || p.code.toLowerCase().includes(plantManageSearch.toLowerCase()))
-                .map(p => (
-                  <div key={p.id} className="list-row">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                      <input 
-                        type="checkbox" 
-                        style={{ width: 'auto' }} 
-                        checked={selectedPlants.has(p.id)} 
-                        onChange={() => toggleSelect(p.id, selectedPlants, setSelectedPlants)}
-                      />
-                      <span>{p.name} (Code: {p.code})</span>
-                    </div>
-                    <button className="secondary" onClick={() => handleDeletePlant(p.id)}>Delete</button>
-                  </div>
+              {plants.map(p => (
+                   <div key={p.id} className="list-row">
+                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                       <input 
+                         type="checkbox" 
+                         style={{ width: 'auto' }} 
+                         checked={selectedPlants.has(p.id)} 
+                         onChange={() => toggleSelect(p.id, selectedPlants, setSelectedPlants)}
+                       />
+                       <span>{p.name} (Code: {p.code})</span>
+                     </div>
+                     <button className="secondary" onClick={() => handleDeletePlant(p.id)}>Delete</button>
+                   </div>
                 ))}
             </div>
           </article>
@@ -1299,21 +1297,19 @@ export default function App() {
               </div>
             </div>
             <div className="stack">
-              {products
-                .filter(p => p.name.toLowerCase().includes(productManageSearch.toLowerCase()) || p.code.toLowerCase().includes(productManageSearch.toLowerCase()))
-                .map(p => (
-                  <div key={p.id} className="list-row">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                      <input 
-                        type="checkbox" 
-                        style={{ width: 'auto' }} 
-                        checked={selectedProducts.has(p.id)} 
-                        onChange={() => toggleSelect(p.id, selectedProducts, setSelectedProducts)}
-                      />
-                      <span>{p.name} (SKU: {p.code})</span>
-                    </div>
-                    <button className="secondary" onClick={() => handleDeleteProduct(p.id)}>Delete</button>
-                  </div>
+              {products.map(p => (
+                   <div key={p.id} className="list-row">
+                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                       <input 
+                         type="checkbox" 
+                         style={{ width: 'auto' }} 
+                         checked={selectedProducts.has(p.id)} 
+                         onChange={() => toggleSelect(p.id, selectedProducts, setSelectedProducts)}
+                       />
+                       <span>{p.name} (SKU: {p.code})</span>
+                     </div>
+                     <button className="secondary" onClick={() => handleDeleteProduct(p.id)}>Delete</button>
+                   </div>
                 ))}
             </div>
           </article>
@@ -1337,21 +1333,19 @@ export default function App() {
               </div>
             </div>
             <div className="stack">
-              {challans
-                .filter(c => c.challan_number?.toLowerCase().includes(challanManageSearch.toLowerCase()) || c.customer_name?.toLowerCase().includes(challanManageSearch.toLowerCase()))
-                .map(c => (
-                  <div key={c.id} className="list-row">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                      <input 
-                        type="checkbox" 
-                        style={{ width: 'auto' }} 
-                        checked={selectedChallans.has(c.id)} 
-                        onChange={() => toggleSelect(c.id, selectedChallans, setSelectedChallans)}
-                      />
-                      <span>{c.challan_number} - {c.customer_name} ({c.challan_date})</span>
-                    </div>
-                    <button className="secondary" onClick={() => handleDeleteChallan(c.id)}>Delete</button>
-                  </div>
+              {challans.map(c => (
+                   <div key={c.id} className="list-row">
+                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                       <input 
+                         type="checkbox" 
+                         style={{ width: 'auto' }} 
+                         checked={selectedChallans.has(c.id)} 
+                         onChange={() => toggleSelect(c.id, selectedChallans, setSelectedChallans)}
+                       />
+                       <span>{c.challan_number} - {c.customer_name} ({c.challan_date})</span>
+                     </div>
+                     <button className="secondary" onClick={() => handleDeleteChallan(c.id)}>Delete</button>
+                   </div>
                 ))}
             </div>
           </article>
