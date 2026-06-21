@@ -1369,12 +1369,12 @@ def build_challan_pdf(challan: Dict[str, Any]) -> bytes:
         [Paragraph("From", table_label_style), "", Paragraph("To", table_label_style), ""],
         [
             Paragraph(
-                f"{challan.get('from_company_name', challan.get('from_plant_name', ''))}<br/><font size='8'>Plant: {challan.get('from_plant_name', '')}</font>",
+                f"{challan.get('from_company_name', challan.get('from_plant_name', ''))}",
                 table_value_style
             ),
             "",
             Paragraph(
-                f"{challan.get('to_company_name', challan.get('customer_name', ''))}<br/><font size='8'>Plant: {challan.get('customer_name', '')}</font>",
+                f"{challan.get('to_company_name', challan.get('customer_name', ''))}",
                 table_value_style
             ), ""],
         [Paragraph(f"Address: {challan.get('from_plant_address', '')}", table_value_style), "", Paragraph(f"Address: {challan.get('customer_address', '')}", table_value_style), ""],
