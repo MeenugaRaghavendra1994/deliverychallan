@@ -286,6 +286,64 @@ export default function App() {
     finally { setIsLoading(false); }
   };
 
+  // --- Manage Data: backend search helpers ---
+  const searchPlantsManage = async (term) => {
+    try {
+      console.debug('[Search] Plants manage search:', term);
+      if (!term || term.trim() === "") {
+        // empty -> load full list already stored via loadAllPlants
+        const all = await loadAllPlants();
+        setPlants(all);
+        return;
+      }
+      setIsLoading(true);
+      const data = await requestJson(`/plants?search=${encodeURIComponent(term)}`);
+      setPlants(data);
+    } catch (err) {
+      console.error('searchPlantsManage error', err);
+      setStatus(err.message || 'Search failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const searchProductsManage = async (term) => {
+    try {
+      console.debug('[Search] Products manage search:', term);
+      if (!term || term.trim() === "") {
+        const all = await loadAllProducts();
+        setProducts(all);
+        return;
+      }
+      setIsLoading(true);
+      const data = await requestJson(`/products?search=${encodeURIComponent(term)}`);
+      setProducts(data);
+    } catch (err) {
+      console.error('searchProductsManage error', err);
+      setStatus(err.message || 'Search failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const searchChallansManage = async (term) => {
+    try {
+      console.debug('[Search] Challans manage search:', term);
+      if (!term || term.trim() === "") {
+        await loadChallans();
+        return;
+      }
+      setIsLoading(true);
+      const data = await requestJson(`/challans?search=${encodeURIComponent(term)}`);
+      setChallans(data);
+    } catch (err) {
+      console.error('searchChallansManage error', err);
+      setStatus(err.message || 'Search failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // --- Diagnostic Logs ---
   useEffect(() => {
     console.log("--- Frontend Diagnostic Start ---");
