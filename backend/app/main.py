@@ -1464,3 +1464,9 @@ async def debug_request(request: Request):
     }
     logger.info(f"Debug request info: {info}")
     return info
+
+
+# Vercel Python runtime requires a top-level entrypoint named `app`, `application`, or `handler`.
+# `app` is already defined above. Export aliases to ensure the runtime detects an ASGI app.
+application = app
+handler = app
