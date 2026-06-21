@@ -11,7 +11,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Response, UploadFile, File, APIRouter, Request
+from fastapi import FastAPI, HTTPException, Response, UploadFile, File, APIRouter, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr # Added EmailStr
 from reportlab.graphics.shapes import Drawing, Path, Line, String, Group
@@ -925,7 +925,7 @@ def _get_product_by_code(client, code: str) -> Optional[Dict[str, Any]]:
 
 
 @router.post("/challans/bulk-upload", response_model=List[ChallanOut])
-async def bulk_upload_challans(file: UploadFile = File(...)):
+async def bulk_upload_challans(file: UploadFile = File(...), x_user: Optional[str] = Header(None)):
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files are supported.")
 
@@ -955,6 +955,9 @@ async def bulk_upload_challans(file: UploadFile = File(...)):
     client = get_supabase_client()
     if not client:
         raise HTTPException(status_code=500, detail="Supabase client not initialized.")
+
+    # Determine uploader identity (prefer header provided by frontend / current user)
+    uploader = x_user or "Bulk Upload"
 
     all_plant_codes = set()
     all_product_codes = set()
@@ -1115,7 +1118,8 @@ async def bulk_upload_challans(file: UploadFile = File(...)):
             order_ref=order_ref,
             docket_no=docket_no,
             reason_for_dc=reason_for_dc,
-            vehicle_no=None
+            vehicle_no=None,
+            created_by=uploader
         )
         
         try:
