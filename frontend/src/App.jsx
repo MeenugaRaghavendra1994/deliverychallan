@@ -455,14 +455,34 @@ export default function App() {
   };
 
   const handleDeleteChallan = async (id) => {
+    // Confirm action
     if (!window.confirm("Are you sure you want to delete this challan? This action cannot be undone.")) return;
+
+    // Prompt for cancellation reason
+    const reason = window.prompt("Enter cancel reason for this challan (required):");
+    if (reason === null) return; // user cancelled prompt
+    if (!reason.trim()) {
+      alert('Cancel reason is required.');
+      return;
+    }
+
     setIsLoading(true);
     try {
-      await requestJson(`/challans/${id}`, { method: "DELETE" });
-      setChallans((current) => current.filter((c) => c.id !== id));
-      setStatus("Challan deleted.");
-    } catch (error) { setStatus(error.message); }
-    finally { setIsLoading(false); }
+      // Send reason as query param so backend can persist it
+      const data = await requestJson(`/challans/${id}?reason=${encodeURIComponent(reason)}`, { method: "DELETE" });
+
+      // If backend returns the updated challan, replace it in state. Otherwise mark as cancelled locally.
+      if (data && data.id) {
+        setChallans((current) => current.map((c) => (c.id === id ? data : c)));
+      } else {
+        setChallans((current) => current.map((c) => c.id === id ? { ...c, cancelled: true, cancelled_at: new Date().toISOString(), cancel_reason: reason } : c));
+      }
+      setStatus("Challan cancelled.");
+    } catch (error) {
+      setStatus(error.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleProductSubmit = async (event) => {

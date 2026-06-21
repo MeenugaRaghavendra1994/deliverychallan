@@ -843,28 +843,33 @@ def _create_challan_entry(challan_payload: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @router.delete("/challans/{id}")
-def delete_challan(id: str):
+def delete_challan(id: str, reason: Optional[str] = None):
     # Soft-cancel a challan instead of deleting it so we retain its number and history.
     client = get_supabase_client()
-    cancel_meta = {"cancelled": True, "cancelled_at": now_iso()}
+    cancel_meta = {"cancelled": True, "cancelled_at": now_iso(), "cancel_reason": reason}
     if client:
         try:
-            client.table("challans").update(cancel_meta).eq("id", id).execute()
+            response = client.table("challans").update(cancel_meta).eq("id", id).execute()
+            # If Supabase returns the updated record, return it for frontend sync
+            if response and getattr(response, 'data', None):
+                return response.data[0]
             return {"status": "success", "cancelled": True}
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Cancel Error: {str(e)}")
 
-    # In-memory store: mark the challan as cancelled
+    # In-memory store: mark the challan as cancelled and persist reason
     found = False
+    updated = None
     for c in memory_store.challans:
         if c.get("id") == id:
-            c.update(cancel_meta)
+            c.update({"cancelled": True, "cancelled_at": now_iso(), "cancel_reason": reason})
+            updated = c
             found = True
             break
     if not found:
         raise HTTPException(status_code=404, detail="Challan not found")
 
-    return {"status": "success", "cancelled": True}
+    return updated
 
 
 @router.post("/challans/bulk-delete")
