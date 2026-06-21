@@ -447,18 +447,22 @@ def read_plants(search: Optional[str] = None, limit: int = 10) -> List[Dict[str,
         try:
             query = client.table("plants").select("*")
             if search:
-                # Case-insensitive search on name or code -> return full search results
-                query = query.or_(f"name.ilike.%{search}%,code.ilike.%{search}%")
-                response = query.order("created_at", desc=True).execute()
+                # sanitize and search across multiple relevant fields -> return full matching results
+                q = search.replace('%', '')
+                query = query.or_(
+                    f"name.ilike.%{q}%,code.ilike.%{q}%,address.ilike.%{q}%,city.ilike.%{q}%,state.ilike.%{q}%,gstin.ilike.%{q}%"
+                ).order("created_at", desc=True)
+                response = query.execute()
                 return response.data or []
 
-            # No search -> limit to top `limit` results to avoid huge payloads
+            # No search -> limit to top `limit` results
             response = query.order("created_at", desc=True).limit(limit).execute()
             return response.data or []
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Supabase Fetch Error: {str(e)}")
+    # In-memory fallback
     if search:
-        return [p for p in memory_store.list_plants() if search.lower() in p.get("name", "").lower() or search.lower() in p.get("code", "").lower()]
+        return [p for p in memory_store.list_plants() if any(search.lower() in (p.get(k) or "").lower() for k in ("name", "code", "address", "city", "state", "gstin"))]
     
     return memory_store.list_plants()[:limit]
 
@@ -586,14 +590,16 @@ async def bulk_upload_plants(file: UploadFile = File(...)):
 
 @router.get("/products", response_model=List[ProductOut])
 def read_products(search: Optional[str] = None, limit: int = 10) -> List[Dict[str, Any]]:
+    """Return latest `limit` products by default. If `search` is provided, search entire table (no limit)."""
     client = get_supabase_client()
     if client:
         try:
             query = client.table("products").select("*")
             if search:
-                # Case-insensitive search on name or code -> return full search results
-                query = query.or_(f"name.ilike.%{search}%,code.ilike.%{search}%")
-                response = query.order("created_at", desc=True).execute()
+                # sanitize and search across multiple relevant fields -> return full matching results
+                q = search.replace('%', '')
+                query = query.or_(f"name.ilike.%{q}%,code.ilike.%{q}%,hsn_code.ilike.%{q}%,description.ilike.%{q}%").order("created_at", desc=True)
+                response = query.execute()
                 return response.data or []
 
             # No search -> limit to top `limit` results
@@ -601,8 +607,9 @@ def read_products(search: Optional[str] = None, limit: int = 10) -> List[Dict[st
             return response.data or []
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Supabase Fetch Error: {str(e)}")
+    # In-memory fallback
     if search:
-        return [p for p in memory_store.list_products() if search.lower() in p.get("name", "").lower() or search.lower() in p.get("code", "").lower()]
+        return [p for p in memory_store.list_products() if any(search.lower() in (p.get(k) or "").lower() for k in ("name", "code", "hsn_code", "description"))]
     
     return memory_store.list_products()[:limit]
 
@@ -720,15 +727,28 @@ async def bulk_upload_products(file: UploadFile = File(...)):
 
 
 @router.get("/challans", response_model=List[ChallanOut])
-def read_challans(limit: int = 10) -> List[Dict[str, Any]]:
+def read_challans(search: Optional[str] = None, limit: int = 10) -> List[Dict[str, Any]]:
+    """Return latest `limit` challans by default. If `search` is provided, search entire table (no limit)."""
     client = get_supabase_client()
     if client:
         try:
-            # Default to latest `limit` challans to prevent huge responses
-            response = client.table("challans").select("*").order("created_at", desc=True).limit(limit).execute()
+            query = client.table("challans").select("*")
+            if search:
+                # search across common fields
+                q = search.replace('%', '')
+                query = query.or_(f"challan_number.ilike.%{q}%,from_plant_name.ilike.%{q}%,customer_name.ilike.%{q}%,order_ref.ilike.%{q}%,docket_no.ilike.%{q}%")
+                response = query.order("created_at", desc=True).execute()
+                return response.data or []
+
+            # Default path: limited recent challans
+            response = query.order("created_at", desc=True).limit(limit).execute()
             return response.data or []
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Supabase Fetch Error: {str(e)}")
+    # In-memory fallback
+    if search:
+        return [c for c in memory_store.list_challans() if search.lower() in (c.get("challan_number", "") or "").lower() or search.lower() in (c.get("from_plant_name", "") or "").lower() or search.lower() in (c.get("customer_name", "") or "").lower() or search.lower() in (c.get("order_ref", "") or "").lower() or search.lower() in (c.get("docket_no", "") or "").lower()]
+
     return memory_store.list_challans()[:limit]
 
 
