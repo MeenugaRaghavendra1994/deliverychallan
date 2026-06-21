@@ -1438,6 +1438,57 @@ def build_challan_pdf(challan: Dict[str, Any]) -> bytes:
     doc.build(story)
     return buffer.getvalue()
 
+def get_next_challan_number() -> Dict[str, str]:
+    """Compute the next challan number.
+
+    Strategy:
+    - Try to fetch the most recently created challan (by created_at) from the DB (Supabase) or in-memory store.
+    - If a last challan_number exists and contains a trailing integer, increment that integer preserving zero-padding.
+    - If no numeric suffix is found, append "-1" to the last number.
+    - If no previous challan exists, default to `DC-0001`.
+    - Always return a dict {"next_number": <value>} to match existing call sites.
+    """
+    prefix_default = "DC-"
+    client = get_supabase_client()
+    try:
+        last_number = None
+        if client:
+            try:
+                res = client.table("challans").select("challan_number").order("created_at", desc=True).limit(1).execute()
+                last = (res.data or [None])[0]
+                last_number = last.get("challan_number") if last else None
+            except Exception as e:
+                logger.warning(f"get_next_challan_number: failed DB lookup: {e}")
+                last_number = None
+        else:
+            # in-memory fallback
+            items = memory_store.list_challans()
+            if items:
+                last_number = items[0].get("challan_number")
+
+        if last_number:
+            # find trailing numeric part
+            m = re.search(r"(\d+)$", str(last_number))
+            if m:
+                num_part = m.group(1)
+                next_num_val = int(num_part) + 1
+                # preserve padding
+                padded = str(next_num_val).zfill(len(num_part))
+                next_number = str(last_number[: m.start(1)]) + padded
+            else:
+                # if no trailing digits, append a standard suffix
+                next_number = f"{last_number}-1"
+        else:
+            next_number = f"{prefix_default}0001"
+
+        return {"next_number": next_number}
+    except Exception as e:
+        logger.error(f"get_next_challan_number: unexpected error: {e}")
+        # Fallback: timestamp-based unique number
+        ts = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+        return {"next_number": f"{prefix_default}{ts}"}
+
+
 @app.get("/api/health")
 async def api_health_check():
     """Direct health check to verify Vercel routing."""
