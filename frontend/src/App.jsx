@@ -1281,8 +1281,19 @@ export default function App() {
         <ul className="stack"> {/* Changed to stack for consistent spacing */}
           {filteredChallans.map((challan) => (
             <li key={challan.id} className="list-row">
-              <div>
-                <strong>{challan.challan_number}</strong> <span>{challan.customer_name}</span>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                  <strong>{challan.challan_number}</strong>
+                  <span>{challan.customer_name}</span>
+                  {challan.cancelled ? (
+                    <span style={{ marginLeft: '8px', padding: '2px 8px', borderRadius: 12, background: 'rgba(255,0,0,0.08)', color: '#b91c1c', fontSize: '0.8rem' }}>Cancelled</span>
+                  ) : (
+                    <span style={{ marginLeft: '8px', padding: '2px 8px', borderRadius: 12, background: 'rgba(16,185,129,0.08)', color: '#047857', fontSize: '0.8rem' }}>Active</span>
+                  )}
+                </div>
+                {challan.cancelled && challan.cancel_reason && (
+                  <small style={{ color: '#9b1c1c' }}>Reason: {challan.cancel_reason}</small>
+                )}
               </div>
               <div>
                 <span>₹{challan.total_amount} </span>
@@ -1420,9 +1431,26 @@ export default function App() {
                          checked={selectedChallans.has(c.id)} 
                          onChange={() => toggleSelect(c.id, selectedChallans, setSelectedChallans)}
                        />
-                       <span>{c.challan_number} - {c.customer_name} ({c.challan_date})</span>
+                       <div style={{ display: 'flex', flexDirection: 'column' }}>
+                         <span style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                           <strong style={{ marginRight: 6 }}>{c.challan_number}</strong>
+                           <span>{c.customer_name} ({c.challan_date})</span>
+                           {c.cancelled ? (
+                             <span style={{ marginLeft: '8px', padding: '2px 8px', borderRadius: 12, background: 'rgba(255,0,0,0.08)', color: '#b91c1c', fontSize: '0.8rem' }}>Cancelled</span>
+                           ) : (
+                             <span style={{ marginLeft: '8px', padding: '2px 8px', borderRadius: 12, background: 'rgba(16,185,129,0.08)', color: '#047857', fontSize: '0.8rem' }}>Active</span>
+                           )}
+                         </span>
+                         {c.cancelled && c.cancel_reason && <small style={{ color: '#9b1c1c' }}>Reason: {c.cancel_reason}</small>}
+                       </div>
                      </div>
-                     <button className="secondary" onClick={() => handleDeleteChallan(c.id)}>Delete</button>
+                     <div>
+                       {!c.cancelled ? (
+                         <button className="secondary" onClick={() => handleDeleteChallan(c.id)}>Cancel</button>
+                       ) : (
+                         <button className="secondary" disabled style={{ background: 'white', color: '#9a1f1f', borderColor: 'red' }}>Cancelled</button>
+                       )}
+                     </div>
                    </div>
                 ))}
             </div>

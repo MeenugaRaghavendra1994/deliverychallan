@@ -343,6 +343,9 @@ class ChallanOut(ChallanCreate):
     total_amount: float
     created_at: Optional[str] = None
     created_by: Optional[str] = None # New field
+    cancelled: bool = False
+    cancelled_at: Optional[str] = None
+    cancel_reason: Optional[str] = None
 
 
 class InMemoryStore:
