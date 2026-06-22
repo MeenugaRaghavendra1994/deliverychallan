@@ -446,24 +446,71 @@ def health():
 @router.get("/plants", response_model=List[PlantOut])
 def read_plants(search: Optional[str] = None, limit: int = 10) -> List[Dict[str, Any]]:
     client = get_supabase_client()
+    logger.debug(f"read_plants called. search={search!r}, limit={limit}, client_initialized={bool(client)}")
     if client:
         try:
             query = client.table("plants").select("*")
             if search:
                 # sanitize and search across multiple relevant fields -> return full matching results
                 q = search.replace('%', '')
+                logger.debug(f"Performing Supabase or_ ilike search across plants with query: {q!r}")
                 query = query.or_(
                     f"name.ilike.%{q}%,code.ilike.%{q}%,address.ilike.%{q}%,city.ilike.%{q}%,state.ilike.%{q}%,gstin.ilike.%{q}%"
                 ).order("created_at", desc=True)
-                response = query.execute()
-                return response.data or []
+                try:
+                    response = query.execute()
+                    results = response.data or []
+                    logger.debug(f"Primary or_ search returned {len(results)} rows for query: {q!r}")
+                except Exception as e:
+                    logger.warning(f"Primary or_ search failed: {e}")
+                    results = []
+
+                # If primary search returned nothing, attempt safer fallbacks to help diagnose frontend issues
+                if not results:
+                    fallback_results = []
+                    try:
+                        logger.debug(f"Fallback: trying ilike on name for query '%{q}%'")
+                        r1 = client.table("plants").select("*").ilike("name", f"%{q}%").order("created_at", desc=True).execute()
+                        fallback_results.extend(r1.data or [])
+                    except Exception as e:
+                        logger.warning(f"Fallback name ilike failed: {e}")
+
+                    try:
+                        logger.debug(f"Fallback: trying ilike on code for query '%{q}%'")
+                        r2 = client.table("plants").select("*").ilike("code", f"%{q}%").order("created_at", desc=True).execute()
+                        fallback_results.extend(r2.data or [])
+                    except Exception as e:
+                        logger.warning(f"Fallback code ilike failed: {e}")
+
+                    # Try or_ with smaller clauses if still empty
+                    if not fallback_results:
+                        try:
+                            logger.debug(f"Fallback: trying or_ on code/name for query: {q!r}")
+                            r3 = client.table("plants").select("*").or_(f"code.ilike.%{q}%,name.ilike.%{q}%").order("created_at", desc=True).execute()
+                            fallback_results.extend(r3.data or [])
+                        except Exception as e:
+                            logger.warning(f"Fallback or_ code/name failed: {e}")
+
+                    # Deduplicate by id
+                    unique = {}
+                    for p in fallback_results:
+                        if p and p.get("id"):
+                            unique[p["id"]] = p
+
+                    results = list(unique.values())
+                    logger.debug(f"Fallback searches returned {len(results)} unique rows for query: {q!r}")
+
+                return results
 
             # No search -> limit to top `limit` results
             response = query.order("created_at", desc=True).limit(limit).execute()
+            logger.debug(f"read_plants returning {len(response.data or [])} latest plants (limit={limit})")
             return response.data or []
         except Exception as e:
+            logger.error(f"Supabase Fetch Error in read_plants: {e}")
             raise HTTPException(status_code=500, detail=f"Supabase Fetch Error: {str(e)}")
     # In-memory fallback
+    logger.debug("Supabase client not initialized; using in-memory fallback for read_plants")
     if search:
         return [p for p in memory_store.list_plants() if any(search.lower() in (p.get(k) or "").lower() for k in ("name", "code", "address", "city", "state", "gstin"))]
     
