@@ -1070,6 +1070,11 @@ def _create_challan_entry(challan_payload: Dict[str, Any]) -> Dict[str, Any]:
         next_num_data = get_next_challan_number()
         challan_payload["challan_number"] = next_num_data["next_number"]
 
+    # Ensure challan_date is set for single challan creation. If caller provided one, keep it;
+    # otherwise use India local date (IST) so records align with uploader's local calendar date.
+    if not challan_payload.get("challan_date"):
+        ist = timezone(timedelta(hours=5, minutes=30))
+        challan_payload["challan_date"] = datetime.now(ist).date().isoformat()
     challan_payload["id"] = str(uuid.uuid4())
     challan_payload["created_at"] = now_iso()
     challan_payload["total_amount"] = round(sum(item["quantity"] * item["rate"] for item in challan_payload.get("items", [])), 2)
@@ -1169,7 +1174,11 @@ def _get_product_by_code(client, code: str) -> Optional[Dict[str, Any]]:
 
 
 @router.post("/challans/bulk-upload", response_model=List[ChallanOut])
-async def bulk_upload_challans(file: UploadFile = File(...), x_user: Optional[str] = Header(None)):
+async def bulk_upload_challans(
+    file: UploadFile = File(...),
+    x_user: Optional[str] = Header(None),
+    x_challan_date: Optional[str] = Header(None, alias="x-challan-date"),
+):
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files are supported.")
 

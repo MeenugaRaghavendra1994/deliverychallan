@@ -756,7 +756,13 @@ export default function App() {
       const formData = new FormData();
       formData.append("file", file);
       // Include uploader identity header when available so backend can persist created_by
-      const extraHeaders = loggedInUserEmail ? { 'x-user': loggedInUserEmail } : {};
+      const extraHeaders = {};
+      if (loggedInUserEmail) extraHeaders['x-user'] = loggedInUserEmail;
+      // Add local client date (YYYY-MM-DD) so server uses uploader's local date for challan_date
+      const pad = (n) => n.toString().padStart(2, '0');
+      const now = new Date();
+      const localDate = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+      extraHeaders['x-challan-date'] = localDate;
       const response = await fetch(`${API_BASE}${path}`, {
         method: "POST",
         headers: extraHeaders,
@@ -803,8 +809,13 @@ export default function App() {
       const formData = new FormData();
       formData.append("file", selectedFile);
 
-      // Pass uploader identity so created_by is populated in DB
-      const extraHeaders = loggedInUserEmail ? { 'x-user': loggedInUserEmail } : {};
+      // Pass uploader identity and client local date so created_by and challan_date are set
+      const extraHeaders = {};
+      if (loggedInUserEmail) extraHeaders['x-user'] = loggedInUserEmail;
+      const pad = (n) => n.toString().padStart(2, '0');
+      const now = new Date();
+      const localDate = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+      extraHeaders['x-challan-date'] = localDate;
       const response = await fetch(`${API_BASE}/challans/bulk-upload`, {
         method: "POST",
         headers: extraHeaders,
