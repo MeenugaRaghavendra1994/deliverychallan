@@ -1638,7 +1638,7 @@ def build_challan_pdf(challan: Dict[str, Any]) -> bytes:
         ('GRID', (0,0), (0,-1), 0.5, colors.grey),
         ('GRID', (2,0), (2,-1), 0.5, colors.grey),
         ('VALIGN', (0,0), (-1,-1), 'TOP'),
-        ('LEFTPADDING', (0,0), (-1, 0), (-1, -1), 2),
+        ('LEFTPADDING', (0,0), (-1, -1), 2),
         ('RIGHTPADDING', (0,0), (-1, -1), 2),
     ]))
     story.append(t_addr)
