@@ -548,23 +548,43 @@ export default function App() {
 
   const handleFromPlantSearchChange = async (term) => {
     setFromPlantSearch(term);
-    // Filter from the full list of plants loaded into 'plants' state
+
+    // Quick client-side filtering for suggestions
     const filtered = plants.filter(p =>
       p.name.toLowerCase().includes(term.toLowerCase()) ||
       p.code.toLowerCase().includes(term.toLowerCase())
     );
     setFromPlantDisplayOptions(filtered);
 
-    // Check if the typed term exactly matches a display option
-    const matchedPlant = plants.find(p => 
+    // Attempt server-side resolve for exact match (id/code/name). This ensures authoritative lookup.
+    if (term && term.trim() !== "") {
+      setIsLoading(true);
+      try {
+        const resolved = await requestJson(`/plants/resolve?term=${encodeURIComponent(term)}`);
+        if (resolved && resolved.id) {
+          handleFromPlantChange(resolved.id);
+          setFromPlantSearch(`${resolved.name} (${resolved.code})`);
+          setFromPlantDisplayOptions([resolved]);
+          setIsLoading(false);
+          return;
+        }
+      } catch (err) {
+        // Not found or error — keep client-side suggestions and do not treat as fatal
+        console.debug('From plant resolve failed or not found:', err.message || err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    // If no exact resolve, clear selection when typed value doesn't exactly match a known display option
+    const matchedPlant = plants.find(p =>
       `${p.name} (${p.code})`.toLowerCase() === term.toLowerCase() ||
       p.code.toLowerCase() === term.toLowerCase()
     );
     if (matchedPlant) {
       handleFromPlantChange(matchedPlant.id);
-      setFromPlantSearch(`${matchedPlant.name} (${matchedPlant.code})`); // Set input to canonical name
+      setFromPlantSearch(`${matchedPlant.name} (${matchedPlant.code})`);
     } else {
-      // If no exact match, clear the selected plant from the form AND its details
       setChallanForm(prev => ({
         ...prev,
         from_plant_id: "",
@@ -581,23 +601,39 @@ export default function App() {
 
   const handleToPlantSearchChange = async (term) => {
     setToPlantSearch(term);
-    // Filter from the full list of plants loaded into 'plants' state
+
     const filtered = plants.filter(p =>
       p.name.toLowerCase().includes(term.toLowerCase()) ||
       p.code.toLowerCase().includes(term.toLowerCase())
     );
     setToPlantDisplayOptions(filtered);
 
-    // Check if the typed term exactly matches a display option
-    const matchedPlant = plants.find(p => 
+    if (term && term.trim() !== "") {
+      setIsLoading(true);
+      try {
+        const resolved = await requestJson(`/plants/resolve?term=${encodeURIComponent(term)}`);
+        if (resolved && resolved.id) {
+          handleChallanPlantChange(resolved.id);
+          setToPlantSearch(`${resolved.name} (${resolved.code})`);
+          setToPlantDisplayOptions([resolved]);
+          setIsLoading(false);
+          return;
+        }
+      } catch (err) {
+        console.debug('To plant resolve failed or not found:', err.message || err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    const matchedPlant = plants.find(p =>
       `${p.name} (${p.code})`.toLowerCase() === term.toLowerCase() ||
       p.code.toLowerCase() === term.toLowerCase()
     );
     if (matchedPlant) {
       handleChallanPlantChange(matchedPlant.id);
-      setToPlantSearch(`${matchedPlant.name} (${matchedPlant.code})`); // Set input to canonical name
+      setToPlantSearch(`${matchedPlant.name} (${matchedPlant.code})`);
     } else {
-      // If no exact match, clear the selected plant from the form AND its details
       setChallanForm(prev => ({
         ...prev,
         plant_id: "",
