@@ -1801,14 +1801,15 @@ handler = app
 
 # Endpoint: Resolve a single plant by id/code/name
 @router.get("/plants/resolve", tags=["Plants"]) 
-def resolve_plant(q: str):
-    """Return the best matching plant for a search term `q`.
+def resolve_plant(q: Optional[str] = None, term: Optional[str] = None):
+    """Return the best matching plant for a search term. Accepts either `q` or `term` as the query param.
     Matches tried in order: UUID id, exact code, ilike code, wildcard code, exact name, ilike name, wildcard name, or_ across code/name.
     Falls back to in-memory store when Supabase is not available.
     """
-    query_raw = (q or "").strip()
+    # Support frontend that sends `term` as well as callers that use `q`.
+    query_raw = (q or term or "").strip()
     if not query_raw:
-        raise HTTPException(status_code=400, detail="Query parameter `q` is required.")
+        raise HTTPException(status_code=400, detail="Query parameter `q` or `term` is required.")
 
     client = get_supabase_client()
     q_clean = query_raw.replace('%', '')
