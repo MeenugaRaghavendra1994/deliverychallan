@@ -447,6 +447,7 @@ def health():
 def read_plants(search: Optional[str] = None, limit: int = 10) -> List[Dict[str, Any]]:
     client = get_supabase_client()
     logger.debug(f"read_plants called. search={search!r}, limit={limit}, client_initialized={bool(client)}")
+    # If we have a Supabase client, prefer DB-backed lookup but be defensive
     if client:
         try:
             query = client.table("plants").select("*")
@@ -457,28 +458,39 @@ def read_plants(search: Optional[str] = None, limit: int = 10) -> List[Dict[str,
                 query = query.or_(
                     f"name.ilike.%{q}%,code.ilike.%{q}%,address.ilike.%{q}%,city.ilike.%{q}%,state.ilike.%{q}%,gstin.ilike.%{q}%"
                 ).order("created_at", desc=True)
+
+                # Execute primary query and examine response closely
                 try:
                     response = query.execute()
-                    results = response.data or []
+                    resp_error = getattr(response, 'error', None)
+                    resp_data = getattr(response, 'data', None)
+                    if resp_error:
+                        logger.warning(f"Supabase primary or_ search returned an error: {resp_error}")
+                    results = resp_data or []
                     logger.debug(f"Primary or_ search returned {len(results)} rows for query: {q!r}")
                 except Exception as e:
-                    logger.warning(f"Primary or_ search failed: {e}")
+                    logger.warning(f"Primary or_ search raised exception: {e}")
                     results = []
 
                 # If primary search returned nothing, attempt safer fallbacks to help diagnose frontend issues
                 if not results:
                     fallback_results = []
+
                     try:
                         logger.debug(f"Fallback: trying ilike on name for query '%{q}%'")
                         r1 = client.table("plants").select("*").ilike("name", f"%{q}%").order("created_at", desc=True).execute()
-                        fallback_results.extend(r1.data or [])
+                        if getattr(r1, 'error', None):
+                            logger.warning(f"Fallback name ilike returned error: {getattr(r1, 'error')}")
+                        fallback_results.extend(getattr(r1, 'data', []) or [])
                     except Exception as e:
                         logger.warning(f"Fallback name ilike failed: {e}")
 
                     try:
                         logger.debug(f"Fallback: trying ilike on code for query '%{q}%'")
                         r2 = client.table("plants").select("*").ilike("code", f"%{q}%").order("created_at", desc=True).execute()
-                        fallback_results.extend(r2.data or [])
+                        if getattr(r2, 'error', None):
+                            logger.warning(f"Fallback code ilike returned error: {getattr(r2, 'error')}")
+                        fallback_results.extend(getattr(r2, 'data', []) or [])
                     except Exception as e:
                         logger.warning(f"Fallback code ilike failed: {e}")
 
@@ -487,7 +499,9 @@ def read_plants(search: Optional[str] = None, limit: int = 10) -> List[Dict[str,
                         try:
                             logger.debug(f"Fallback: trying or_ on code/name for query: {q!r}")
                             r3 = client.table("plants").select("*").or_(f"code.ilike.%{q}%,name.ilike.%{q}%").order("created_at", desc=True).execute()
-                            fallback_results.extend(r3.data or [])
+                            if getattr(r3, 'error', None):
+                                logger.warning(f"Fallback or_ code/name returned error: {getattr(r3, 'error')}")
+                            fallback_results.extend(getattr(r3, 'data', []) or [])
                         except Exception as e:
                             logger.warning(f"Fallback or_ code/name failed: {e}")
 
@@ -503,17 +517,29 @@ def read_plants(search: Optional[str] = None, limit: int = 10) -> List[Dict[str,
                 return results
 
             # No search -> limit to top `limit` results
-            response = query.order("created_at", desc=True).limit(limit).execute()
-            logger.debug(f"read_plants returning {len(response.data or [])} latest plants (limit={limit})")
-            return response.data or []
+            try:
+                response = query.order("created_at", desc=True).limit(limit).execute()
+                if getattr(response, 'error', None):
+                    logger.warning(f"read_plants: Supabase returned error for latest query: {getattr(response, 'error')}")
+                    # Fall back to in-memory list when DB returns an error
+                    return memory_store.list_plants()[:limit]
+                logger.debug(f"read_plants returning {len(getattr(response, 'data', []) or [])} latest plants (limit={limit})")
+                return getattr(response, 'data', []) or []
+            except Exception as e:
+                logger.error(f"read_plants: exception while fetching latest plants: {e}")
+                return memory_store.list_plants()[:limit]
         except Exception as e:
-            logger.error(f"Supabase Fetch Error in read_plants: {e}")
-            raise HTTPException(status_code=500, detail=f"Supabase Fetch Error: {str(e)}")
-    # In-memory fallback
+            logger.error(f"Supabase Fetch Error in read_plants (outer): {e}")
+            # Final fallback
+            if search:
+                return [p for p in memory_store.list_plants() if any(search.lower() in (p.get(k) or "").lower() for k in ("name", "code", "address", "city", "state", "gstin"))]
+            return memory_store.list_plants()[:limit]
+
+    # In-memory fallback when Supabase client not initialized
     logger.debug("Supabase client not initialized; using in-memory fallback for read_plants")
     if search:
         return [p for p in memory_store.list_plants() if any(search.lower() in (p.get(k) or "").lower() for k in ("name", "code", "address", "city", "state", "gstin"))]
-    
+
     return memory_store.list_plants()[:limit]
 
 
