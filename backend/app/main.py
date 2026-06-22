@@ -1512,10 +1512,10 @@ def download_challan_pdf(challan_id: str) -> Response:
             from_plant_res = client.table("plants").select("name").eq("id", challan.get("from_plant_id")).maybe_single().execute()
             to_plant_res = client.table("plants").select("name").eq("id", challan.get("plant_id")).maybe_single().execute()
 
-            # The company name is assumed to be "School Shop Private Limited" for all plants.
+            # The company name is assumed to be "SCHOOL SHOP PRIVATE LIMITED" for all plants.
             # The plant-specific name is already in the challan object itself.
-            challan["from_company_name"] = "School Shop Private Limited"
-            challan["to_company_name"] = "School Shop Private Limited"
+            challan["from_company_name"] = "SCHOOL SHOP PRIVATE LIMITED"
+            challan["to_company_name"] = "SCHOOL SHOP PRIVATE LIMITED"
 
             # We can keep the specific plant names from the challan record itself.
             # This avoids issues if a plant name was changed after the challan was created.
@@ -1569,8 +1569,8 @@ def create_sspl_logo():
     g.add(String(48, 55-26, "SSPL", fontName="Helvetica-Bold", fontSize=22, fillColor=HexColor("#F97316")))
     
     # Company Name Text
-    g.add(String(48, 55-43, "School Shop Private Limited", fontName="Helvetica", fontSize=10, fillColor=HexColor("#666666")))
-    
+    g.add(String(48, 55-43, "SCHOOL SHOP PRIVATE LIMITED", fontName="Helvetica", fontSize=10, fillColor=HexColor("#666666")))
+
     d.add(g)
     return d
 
