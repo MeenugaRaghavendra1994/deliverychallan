@@ -755,8 +755,11 @@ export default function App() {
     try {
       const formData = new FormData();
       formData.append("file", file);
+      // Include uploader identity header when available so backend can persist created_by
+      const extraHeaders = loggedInUserEmail ? { 'x-user': loggedInUserEmail } : {};
       const response = await fetch(`${API_BASE}${path}`, {
         method: "POST",
+        headers: extraHeaders,
         body: formData,
       });
 
@@ -800,8 +803,11 @@ export default function App() {
       const formData = new FormData();
       formData.append("file", selectedFile);
 
+      // Pass uploader identity so created_by is populated in DB
+      const extraHeaders = loggedInUserEmail ? { 'x-user': loggedInUserEmail } : {};
       const response = await fetch(`${API_BASE}/challans/bulk-upload`, {
         method: "POST",
+        headers: extraHeaders,
         body: formData,
       });
 
