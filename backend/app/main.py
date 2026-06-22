@@ -1803,31 +1803,41 @@ handler = app
 @router.get("/plants/resolve", tags=["Plants"]) 
 def resolve_plant(q: Optional[str] = None, term: Optional[str] = None):
     """Return the best matching plant for a search term. Accepts either `q` or `term` as the query param.
-    Matches tried in order: UUID id, exact code, ilike code, wildcard code, exact name, ilike name, wildcard name, or_ across code/name.
+    Enhancements: if the term contains a parenthesized code (e.g. 'SSPL EKART BLR (2717)'), try the inner code first.
+    Tries (in order): UUID id, extracted code, exact code, ilike exact code, ilike wildcard code, exact name, ilike exact name, ilike wildcard name, final or_ across code/name.
     Falls back to in-memory store when Supabase is not available.
     """
-    # Support frontend that sends `term` as well as callers that use `q`.
-    query_raw = (q or term or "").strip()
-    if not query_raw:
+    raw = (q or term or "").strip()
+    if not raw:
         raise HTTPException(status_code=400, detail="Query parameter `q` or `term` is required.")
 
-    client = get_supabase_client()
-    q_clean = query_raw.replace('%', '')
+    # If term looks like 'Name (CODE)' extract CODE as high-priority candidate
+    candidates = [raw]
+    try:
+        m = re.search(r"\(([^)]+)\)", raw)
+        if m:
+            inner = m.group(1).strip()
+            if inner and inner not in candidates:
+                candidates.insert(0, inner)
+    except Exception:
+        pass
 
-    # Helper to return result or None
+    client = get_supabase_client()
+    q_clean = raw.replace('%', '')
+
     def _maybe_single(res):
         try:
             return (getattr(res, 'data', None) or [None])[0]
         except Exception:
             return None
 
-    # If DB available, try robust lookups
+    # If DB available, try robust lookups using candidates (prioritise extracted code)
     if client:
         try:
-            # 1. Try UUID
+            # 1) Try UUID with original raw input
             try:
-                uuid.UUID(query_raw)
-                res = client.table("plants").select("*").eq("id", query_raw).maybe_single().execute()
+                uuid.UUID(raw)
+                res = client.table("plants").select("*").eq("id", raw).maybe_single().execute()
                 plant = _maybe_single(res)
                 if plant:
                     logger.debug(f"resolve_plant: matched by id {plant.get('id')}")
@@ -1835,39 +1845,44 @@ def resolve_plant(q: Optional[str] = None, term: Optional[str] = None):
             except Exception:
                 pass
 
-            # 2. Exact code
-            try:
-                res = client.table("plants").select("*").eq("code", query_raw).maybe_single().execute()
-                plant = _maybe_single(res)
-                if plant:
-                    logger.debug(f"resolve_plant: matched by exact code {plant.get('code')}")
-                    return plant
-            except Exception:
-                pass
+            # For each candidate, try code-based lookups first
+            for cand in candidates:
+                if not cand:
+                    continue
+                cand_clean = cand.replace('%', '')
+                # exact code
+                try:
+                    res = client.table("plants").select("*").eq("code", cand).maybe_single().execute()
+                    plant = _maybe_single(res)
+                    if plant:
+                        logger.debug(f"resolve_plant: matched by exact code {plant.get('code')} (candidate={cand})")
+                        return plant
+                except Exception:
+                    pass
 
-            # 3. ilike exact
-            try:
-                res = client.table("plants").select("*").ilike("code", query_raw).maybe_single().execute()
-                plant = _maybe_single(res)
-                if plant:
-                    logger.debug(f"resolve_plant: matched by ilike exact code {plant.get('code')}")
-                    return plant
-            except Exception:
-                pass
+                # ilike exact code
+                try:
+                    res = client.table("plants").select("*").ilike("code", cand).maybe_single().execute()
+                    plant = _maybe_single(res)
+                    if plant:
+                        logger.debug(f"resolve_plant: matched by ilike exact code {plant.get('code')} (candidate={cand})")
+                        return plant
+                except Exception:
+                    pass
 
-            # 4. ilike wildcard on code
-            try:
-                res = client.table("plants").select("*").ilike("code", f"%{q_clean}%").limit(1).execute()
-                plant = _maybe_single(res)
-                if plant:
-                    logger.debug(f"resolve_plant: matched by ilike wildcard code {plant.get('code')}")
-                    return plant
-            except Exception:
-                pass
+                # ilike wildcard code
+                try:
+                    res = client.table("plants").select("*").ilike("code", f"%{cand_clean}%").limit(1).execute()
+                    plant = _maybe_single(res)
+                    if plant:
+                        logger.debug(f"resolve_plant: matched by ilike wildcard code {plant.get('code')} (candidate={cand})")
+                        return plant
+                except Exception:
+                    pass
 
-            # 5. exact name
+            # Name-based lookups (use original raw and cleaned q_clean)
             try:
-                res = client.table("plants").select("*").eq("name", query_raw).maybe_single().execute()
+                res = client.table("plants").select("*").eq("name", raw).maybe_single().execute()
                 plant = _maybe_single(res)
                 if plant:
                     logger.debug(f"resolve_plant: matched by exact name {plant.get('name')}")
@@ -1875,9 +1890,8 @@ def resolve_plant(q: Optional[str] = None, term: Optional[str] = None):
             except Exception:
                 pass
 
-            # 6. ilike exact name
             try:
-                res = client.table("plants").select("*").ilike("name", query_raw).maybe_single().execute()
+                res = client.table("plants").select("*").ilike("name", raw).maybe_single().execute()
                 plant = _maybe_single(res)
                 if plant:
                     logger.debug(f"resolve_plant: matched by ilike exact name {plant.get('name')}")
@@ -1885,7 +1899,6 @@ def resolve_plant(q: Optional[str] = None, term: Optional[str] = None):
             except Exception:
                 pass
 
-            # 7. ilike wildcard on name
             try:
                 res = client.table("plants").select("*").ilike("name", f"%{q_clean}%").limit(1).execute()
                 plant = _maybe_single(res)
@@ -1895,7 +1908,7 @@ def resolve_plant(q: Optional[str] = None, term: Optional[str] = None):
             except Exception:
                 pass
 
-            # 8. final fallback: or_ across code/name
+            # final or_ fallback using cleaned raw
             try:
                 res = client.table("plants").select("*").or_(f"code.ilike.%{q_clean}%,name.ilike.%{q_clean}%").limit(1).execute()
                 plant = _maybe_single(res)
@@ -1908,18 +1921,13 @@ def resolve_plant(q: Optional[str] = None, term: Optional[str] = None):
         except Exception as e:
             logger.warning(f"resolve_plant: Supabase lookup failed: {e}")
 
-    # In-memory fallback
+    # In-memory fallback (mirror the same candidate priority)
     try:
-        # exact id
-        for p in memory_store.list_plants():
-            if p.get("id") == query_raw:
-                return p
-        # exact code
-        for p in memory_store.list_plants():
-            if p.get("code") == query_raw:
-                return p
-        # case-insensitive contains on code/name
-        ql = query_raw.lower()
+        ql = raw.lower()
+        for cand in candidates:
+            for p in memory_store.list_plants():
+                if p.get("id") == cand or p.get("code") == cand:
+                    return p
         for p in memory_store.list_plants():
             if ql == (p.get("code") or "").lower() or ql == (p.get("name") or "").lower():
                 return p
@@ -1929,4 +1937,4 @@ def resolve_plant(q: Optional[str] = None, term: Optional[str] = None):
     except Exception as e:
         logger.warning(f"resolve_plant: in-memory lookup failed: {e}")
 
-    raise HTTPException(status_code=404, detail=f"No plant matched the query: {query_raw}")
+    raise HTTPException(status_code=404, detail=f"No plant matched the query: {raw}")

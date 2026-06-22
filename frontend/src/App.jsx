@@ -613,7 +613,8 @@ export default function App() {
       try {
         const resolved = await requestJson(`/plants/resolve?term=${encodeURIComponent(term)}`);
         if (resolved && resolved.id) {
-          handleChallanPlantChange(resolved.id);
+          // Pass full resolved plant object so handler can add it to state and populate fields
+          handleChallanPlantChange(resolved);
           setToPlantSearch(`${resolved.name} (${resolved.code})`);
           setToPlantDisplayOptions([resolved]);
           setIsLoading(false);
@@ -662,11 +663,25 @@ export default function App() {
     }));
   };
 
-  const handleChallanPlantChange = (plantId) => {
-    const selectedPlant = plants.find((p) => p.id === plantId);
+  const handleChallanPlantChange = (plantOrId) => {
+    // Accept either a plant id (string) or a full plant object returned from /plants/resolve
+    let selectedPlant = null;
+    if (plantOrId && typeof plantOrId === 'object' && plantOrId.id) {
+      selectedPlant = plantOrId;
+      // Ensure the resolved plant exists in the main `plants` array for later lookups
+      setPlants((prev) => {
+        if (!prev.find((p) => p.id === selectedPlant.id)) {
+          return [selectedPlant, ...prev];
+        }
+        return prev.map((p) => (p.id === selectedPlant.id ? { ...p, ...selectedPlant } : p));
+      });
+    } else {
+      selectedPlant = plants.find((p) => p.id === plantOrId);
+    }
+
     setChallanForm((prev) => ({
       ...prev,
-      plant_id: plantId,
+      plant_id: selectedPlant ? selectedPlant.id : "",
       customer_name: selectedPlant ? selectedPlant.name : "",
       customer_address: selectedPlant ? (selectedPlant.address || "") : "",
       customer_state: selectedPlant ? (selectedPlant.state || "") : "",
