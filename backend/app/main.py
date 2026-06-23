@@ -23,7 +23,6 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from supabase import create_client
-import re
 
 import bcrypt # Switched to direct bcrypt usage to avoid Python 3.13 compatibility issues with passlib
 
@@ -1540,28 +1539,8 @@ def download_challan_pdf(challan_id: str) -> Response:
             challan["to_company_name"] = challan.get("customer_name")
 
     pdf_bytes = build_challan_pdf(challan)
-    
-def sanitize_filename(value: str) -> str:
-    """Remove characters that are invalid in filenames."""
-    return re.sub(r'[<>:"/\\|?*]', '_', value)
-
-challan_number = sanitize_filename(challan.challan_number)
-from_plant = sanitize_filename(challan.from_plant.name)
-to_plant = sanitize_filename(challan.to_plant.name)
-
-filename = f"{challan_number}_{from_plant}_to_{to_plant}.pdf"
-
-pdf_bytes = build_challan_pdf(challan)
-
-headers = {
-    "Content-Disposition": f'attachment; filename="{filename}"'
-}
-
-return Response(
-    content=pdf_bytes,
-    media_type="application/pdf",
-    headers=headers
-)
+    headers = {"Content-Disposition": f'attachment; filename="challan_{challan_id}.pdf"'}
+    return Response(content=pdf_bytes, media_type="application/pdf", headers=headers)
 
 def create_sspl_logo():
     """Creates the SSPL logo as a ReportLab Drawing object."""
