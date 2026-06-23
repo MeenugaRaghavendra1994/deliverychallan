@@ -666,7 +666,7 @@ async def bulk_upload_plants(file: UploadFile = File(...)):
 
 
 @router.get("/products", response_model=List[ProductOut])
-def read_products(search: Optional[str] = None, limit: int = 10) -> List[Dict[str, Any]]:
+def read_products(search: Optional[str] = None, limit: int = 10000) -> List[Dict[str, Any]]:
     """Return latest `limit` products by default. If `search` is provided, search entire table (no limit)."""
     client = get_supabase_client()
     if client:
