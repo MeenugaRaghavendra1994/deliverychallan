@@ -804,7 +804,7 @@ async def bulk_upload_products(file: UploadFile = File(...)):
 
 
 @router.get("/challans", response_model=List[ChallanOut])
-def read_challans(search: Optional[str] = None, limit: int = 100) -> List[Dict[str, Any]]:
+def read_challans(search: Optional[str] = None, limit: int = 10) -> List[Dict[str, Any]]:
     """Return latest `limit` challans by default. If `search` is provided, search entire table (no limit)."""
     client = get_supabase_client()
     if client:
