@@ -9,6 +9,7 @@ import re # Added for regex validation
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
+from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Response, UploadFile, File, APIRouter, Request, Header
@@ -1351,7 +1352,7 @@ async def bulk_upload_challans(
         to_plant = plants_by_id[to_plant_id]
 
         challan_payload = ChallanCreate(
-            challan_date=datetime.now(timezone.utc).isoformat().split('T')[0], # Use current date for bulk upload
+            challan_date=datetime.now(ZoneInfo("Asia/Kolkata")).isoformat().split('T')[0], # Use current date for bulk upload
             from_plant_id=from_plant["id"],
             from_plant_name=from_plant["name"],
             from_plant_address=from_plant.get("address"),
