@@ -194,6 +194,8 @@ export default function App() {
   const [selectedPlants, setSelectedPlants] = useState(new Set());
   const [selectedProducts, setSelectedProducts] = useState(new Set());
   const [selectedChallans, setSelectedChallans] = useState(new Set());
+  // Sub-tab state for Manage Data (shows only one table at a time)
+  const [manageSubTab, setManageSubTab] = useState('plants');
 
 
   // --- Login/Signup States ---
@@ -427,6 +429,29 @@ export default function App() {
     const next = new Set(currentSet);
     if (next.has(id)) next.delete(id); else next.add(id);
     setter(next);
+  };
+
+  // Change the active manage-data sub-tab and load its data on demand
+  const handleManageSubTabChange = async (tab) => {
+    setManageSubTab(tab);
+    // Load only the data needed for the selected sub-tab
+    if (tab === 'plants') {
+      setIsLoading(true);
+      try {
+        const all = await loadAllPlants();
+        setPlants(all);
+      } catch (err) { setStatus(err.message); }
+      finally { setIsLoading(false); }
+    } else if (tab === 'products') {
+      setIsLoading(true);
+      try {
+        const all = await loadAllProducts();
+        setProducts(all);
+      } catch (err) { setStatus(err.message); }
+      finally { setIsLoading(false); }
+    } else if (tab === 'challans') {
+      await loadChallans();
+    }
   };
 
   const handleUpdateRole = async (userId, newRole) => {
@@ -1398,131 +1423,147 @@ export default function App() {
       )}
 
       {activeTab === "manage-data" && userRole === "Admin" && (
-        <section className="stack">
-          <article className="card">
-            <h2>Manage Plants</h2>
-            <div className="stack" style={{ marginBottom: '1rem' }}>
-              <input 
-                placeholder="Search Plants by name or code..." 
-                value={plantManageSearch} 
-                onChange={(e) => { setPlantManageSearch(e.target.value); searchPlantsManage(e.target.value); }} 
-              />
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <p className="helper-text">{selectedPlants.size} selected</p>
-                <button 
-                  className="secondary" 
-                  style={{ color: 'red', borderColor: 'red' }}
-                  onClick={() => handleBulkDelete('plant', selectedPlants, setPlants, setSelectedPlants)}
-                  disabled={selectedPlants.size === 0}
-                >Delete Selected</button>
-              </div>
-            </div>
-            <div className="stack">
-              {plants.map(p => (
-                   <div key={p.id} className="list-row">
-                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                       <input 
-                         type="checkbox" 
-                         style={{ width: 'auto' }} 
-                         checked={selectedPlants.has(p.id)} 
-                         onChange={() => toggleSelect(p.id, selectedPlants, setSelectedPlants)}
-                       />
-                       <span>{p.name} (Code: {p.code})</span>
-                     </div>
-                     <button className="secondary" onClick={() => handleDeletePlant(p.id)}>Delete</button>
-                   </div>
-                ))}
-            </div>
-          </article>
+        <section className="card">
+          <h2>Manage Data</h2>
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+            <button className={manageSubTab === 'plants' ? '' : 'secondary'} onClick={() => handleManageSubTabChange('plants')}>Plants</button>
+            <button className={manageSubTab === 'products' ? '' : 'secondary'} onClick={() => handleManageSubTabChange('products')}>Products</button>
+            <button className={manageSubTab === 'challans' ? '' : 'secondary'} onClick={() => handleManageSubTabChange('challans')}>Challans</button>
+          </div>
 
-          <article className="card">
-            <h2>Manage Products</h2>
-            <div className="stack" style={{ marginBottom: '1rem' }}>
-              <input 
-                placeholder="Search Products by name or SKU..." 
-                value={productManageSearch} 
-                onChange={(e) => { setProductManageSearch(e.target.value); searchProductsManage(e.target.value); }} 
-              />
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <p className="helper-text">{selectedProducts.size} selected</p>
-                <button 
-                  className="secondary" 
-                  style={{ color: 'red', borderColor: 'red' }}
-                  onClick={() => handleBulkDelete('product', selectedProducts, setProducts, setSelectedProducts)}
-                  disabled={selectedProducts.size === 0}
-                >Delete Selected</button>
+          {/* Plants Tab */}
+          {manageSubTab === 'plants' && (
+            <article>
+              <h3>Plants</h3>
+              <div className="stack" style={{ marginBottom: '1rem' }}>
+                <input 
+                  placeholder="Search Plants by name or code..." 
+                  value={plantManageSearch} 
+                  onChange={(e) => { setPlantManageSearch(e.target.value); searchPlantsManage(e.target.value); }} 
+                />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <p className="helper-text">{selectedPlants.size} selected</p>
+                  <button 
+                    className="secondary" 
+                    style={{ color: 'red', borderColor: 'red' }}
+                    onClick={() => handleBulkDelete('plant', selectedPlants, setPlants, setSelectedPlants)}
+                    disabled={selectedPlants.size === 0}
+                  >Delete Selected</button>
+                </div>
               </div>
-            </div>
-            <div className="stack">
-              {products.map(p => (
-                   <div key={p.id} className="list-row">
-                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                       <input 
-                         type="checkbox" 
-                         style={{ width: 'auto' }} 
-                         checked={selectedProducts.has(p.id)} 
-                         onChange={() => toggleSelect(p.id, selectedProducts, setSelectedProducts)}
-                       />
-                       <span>{p.name} (SKU: {p.code})</span>
-                     </div>
-                     <button className="secondary" onClick={() => handleDeleteProduct(p.id)}>Delete</button>
-                   </div>
+              <div className="stack">
+                {plants.map(p => (
+                  <div key={p.id} className="list-row">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                      <input 
+                        type="checkbox" 
+                        style={{ width: 'auto' }} 
+                        checked={selectedPlants.has(p.id)} 
+                        onChange={() => toggleSelect(p.id, selectedPlants, setSelectedPlants)}
+                      />
+                      <span>{p.name} (Code: {p.code})</span>
+                    </div>
+                    <button className="secondary" onClick={() => handleDeletePlant(p.id)}>Delete</button>
+                  </div>
                 ))}
-            </div>
-          </article>
+              </div>
+            </article>
+          )}
 
-          <article className="card">
-            <h2>Manage Challans</h2>
-            <div className="stack" style={{ marginBottom: '1rem' }}>
-              <input 
-                placeholder="Search Challans by Number or Customer..." 
-                value={challanManageSearch} 
-                onChange={(e) => { setChallanManageSearch(e.target.value); searchChallansManage(e.target.value); }} 
-              />
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <p className="helper-text">{selectedChallans.size} selected</p>
-                <button 
-                  className="secondary" 
-                  style={{ color: 'red', borderColor: 'red' }}
-                  onClick={() => handleBulkDelete('challan', selectedChallans, setChallans, setSelectedChallans)}
-                  disabled={selectedChallans.size === 0}
-                >Delete Selected</button>
+          {/* Products Tab */}
+          {manageSubTab === 'products' && (
+            <article>
+              <h3>Products</h3>
+              <div className="stack" style={{ marginBottom: '1rem' }}>
+                <input 
+                  placeholder="Search Products by name or SKU..." 
+                  value={productManageSearch} 
+                  onChange={(e) => { setProductManageSearch(e.target.value); searchProductsManage(e.target.value); }} 
+                />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <p className="helper-text">{selectedProducts.size} selected</p>
+                  <button 
+                    className="secondary" 
+                    style={{ color: 'red', borderColor: 'red' }}
+                    onClick={() => handleBulkDelete('product', selectedProducts, setProducts, setSelectedProducts)}
+                    disabled={selectedProducts.size === 0}
+                  >Delete Selected</button>
+                </div>
               </div>
-            </div>
-            <div className="stack">
-              {challans.map(c => (
-                   <div key={c.id} className="list-row">
-                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                       <input 
-                         type="checkbox" 
-                         style={{ width: 'auto' }} 
-                         checked={selectedChallans.has(c.id)} 
-                         onChange={() => toggleSelect(c.id, selectedChallans, setSelectedChallans)}
-                       />
-                       <div style={{ display: 'flex', flexDirection: 'column' }}>
-                         <span style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                           <strong style={{ marginRight: 6 }}>{c.challan_number}</strong>
-                           <span>{c.customer_name} ({c.challan_date})</span>
-                           {c.cancelled ? (
-                             <span style={{ marginLeft: '8px', padding: '2px 8px', borderRadius: 12, background: 'rgba(255,0,0,0.08)', color: '#b91c1c', fontSize: '0.8rem' }}>Cancelled</span>
-                           ) : (
-                             <span style={{ marginLeft: '8px', padding: '2px 8px', borderRadius: 12, background: 'rgba(16,185,129,0.08)', color: '#047857', fontSize: '0.8rem' }}>Active</span>
-                           )}
-                         </span>
-                         {c.cancelled && c.cancel_reason && <small style={{ color: '#9b1c1c' }}>Reason: {c.cancel_reason}</small>}
-                       </div>
-                     </div>
-                     <div>
-                       {!c.cancelled ? (
-                         <button className="secondary" onClick={() => handleDeleteChallan(c.id)}>Cancel</button>
-                       ) : (
-                         <button className="secondary" disabled style={{ background: 'white', color: '#9a1f1f', borderColor: 'red' }}>Cancelled</button>
-                       )}
-                     </div>
-                   </div>
+              <div className="stack">
+                {products.map(p => (
+                  <div key={p.id} className="list-row">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                      <input 
+                        type="checkbox" 
+                        style={{ width: 'auto' }} 
+                        checked={selectedProducts.has(p.id)} 
+                        onChange={() => toggleSelect(p.id, selectedProducts, setSelectedProducts)}
+                      />
+                      <span>{p.name} (SKU: {p.code})</span>
+                    </div>
+                    <button className="secondary" onClick={() => handleDeleteProduct(p.id)}>Delete</button>
+                  </div>
                 ))}
-            </div>
-          </article>
+              </div>
+            </article>
+          )}
+
+          {/* Challans Tab */}
+          {manageSubTab === 'challans' && (
+            <article>
+              <h3>Challans</h3>
+              <div className="stack" style={{ marginBottom: '1rem' }}>
+                <input 
+                  placeholder="Search Challans by Number or Customer..." 
+                  value={challanManageSearch} 
+                  onChange={(e) => { setChallanManageSearch(e.target.value); searchChallansManage(e.target.value); }} 
+                />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <p className="helper-text">{selectedChallans.size} selected</p>
+                  <button 
+                    className="secondary" 
+                    style={{ color: 'red', borderColor: 'red' }}
+                    onClick={() => handleBulkDelete('challan', selectedChallans, setChallans, setSelectedChallans)}
+                    disabled={selectedChallans.size === 0}
+                  >Delete Selected</button>
+                </div>
+              </div>
+              <div className="stack">
+                {challans.map(c => (
+                  <div key={c.id} className="list-row">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                      <input 
+                        type="checkbox" 
+                        style={{ width: 'auto' }} 
+                        checked={selectedChallans.has(c.id)} 
+                        onChange={() => toggleSelect(c.id, selectedChallans, setSelectedChallans)}
+                      />
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                          <strong style={{ marginRight: 6 }}>{c.challan_number}</strong>
+                          <span>{c.customer_name} ({c.challan_date})</span>
+                          {c.cancelled ? (
+                            <span style={{ marginLeft: '8px', padding: '2px 8px', borderRadius: 12, background: 'rgba(255,0,0,0.08)', color: '#b91c1c', fontSize: '0.8rem' }}>Cancelled</span>
+                          ) : (
+                            <span style={{ marginLeft: '8px', padding: '2px 8px', borderRadius: 12, background: 'rgba(16,185,129,0.08)', color: '#047857', fontSize: '0.8rem' }}>Active</span>
+                          )}
+                        </span>
+                        {c.cancelled && c.cancel_reason && <small style={{ color: '#9b1c1c' }}>Reason: {c.cancel_reason}</small>}
+                      </div>
+                    </div>
+                    <div>
+                      {!c.cancelled ? (
+                        <button className="secondary" onClick={() => handleDeleteChallan(c.id)}>Cancel</button>
+                      ) : (
+                        <button className="secondary" disabled style={{ background: 'white', color: '#9a1f1f', borderColor: 'red' }}>Cancelled</button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </article>
+          )}
         </section>
       )}
 
