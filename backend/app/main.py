@@ -666,29 +666,46 @@ async def bulk_upload_plants(file: UploadFile = File(...)):
 
 
 @router.get("/products", response_model=List[ProductOut])
-def read_products(search: Optional[str] = None, limit: int = 10000) -> List[Dict[str, Any]]:
-    """Return latest `limit` products by default. If `search` is provided, search entire table (no limit)."""
+def read_products(search: Optional[str] = None, limit: Optional[int] = None):
     client = get_supabase_client()
+
     if client:
         try:
             query = client.table("products").select("*")
+
             if search:
-                # sanitize and search across multiple relevant fields -> return full matching results
                 q = search.replace('%', '')
-                query = query.or_(f"name.ilike.%{q}%,code.ilike.%{q}%,hsn_code.ilike.%{q}%,description.ilike.%{q}%").order("created_at", desc=True)
+                query = query.or_(
+                    f"name.ilike.%{q}%,code.ilike.%{q}%,hsn_code.ilike.%{q}%,description.ilike.%{q}%"
+                ).order("created_at", desc=True)
+
                 response = query.execute()
                 return response.data or []
 
-            # No search -> limit to top `limit` results
-            response = query.order("created_at", desc=True).limit(limit).execute()
+            # No search
+            if limit:
+                response = query.order("created_at", desc=True).limit(limit).execute()
+            else:
+                response = query.order("created_at", desc=True).execute()
+
             return response.data or []
+
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Supabase Fetch Error: {str(e)}")
-    # In-memory fallback
+            raise HTTPException(
+                status_code=500,
+                detail=f"Supabase Fetch Error: {str(e)}"
+            )
+
     if search:
-        return [p for p in memory_store.list_products() if any(search.lower() in (p.get(k) or "").lower() for k in ("name", "code", "hsn_code", "description"))]
-    
-    return memory_store.list_products()[:limit]
+        return [
+            p for p in memory_store.list_products()
+            if any(
+                search.lower() in (p.get(k) or "").lower()
+                for k in ("name", "code", "hsn_code", "description")
+            )
+        ]
+
+    return memory_store.list_products()
 
 
 @router.post("/products", response_model=ProductOut)
