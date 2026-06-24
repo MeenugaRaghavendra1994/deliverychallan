@@ -1554,7 +1554,7 @@ def download_challan_pdf(challan_id: str) -> Response:
             # Fallback to existing names if DB query fails
             challan["from_company_name"] = challan.get("from_plant_name")
             challan["to_company_name"] = challan.get("customer_name")
-            challan_number = challan.get("challan_number", challan_id)
+            challan_number = challan.get("challan_number")
 
     pdf_bytes = build_challan_pdf(challan)
     headers = {"Content-Disposition": f'attachment; filename="challan_{challan_number}.pdf"'}
