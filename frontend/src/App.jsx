@@ -365,8 +365,10 @@ export default function App() {
     try {
       const loggedIn = localStorage.getItem("isLoggedIn");
       if (loggedIn === "true") {
+        // Restore stored role for any account type (User, Admin, etc.)
+        const role = localStorage.getItem("userRole") || "User";
         setIsLoggedIn(true);
-        setUserRole(localStorage.getItem("userRole", data.role));
+        setUserRole(role);
         const email = localStorage.getItem("userEmail") || "";
         setLoggedInUserEmail(email);
         setLoginTime(localStorage.getItem("loginTime") || new Date().toLocaleString());
