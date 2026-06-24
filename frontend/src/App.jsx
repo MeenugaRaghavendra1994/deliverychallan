@@ -1526,7 +1526,7 @@ export default function App() {
                     style={{ color: 'red', borderColor: 'red' }}
                     onClick={() => handleBulkDelete('challan', selectedChallans, setChallans, setSelectedChallans)}
                     disabled={selectedChallans.size === 0}
-                  >Delete Selected</button>
+                  >Cancel Selected</button>
                 </div>
               </div>
               <div className="stack">
