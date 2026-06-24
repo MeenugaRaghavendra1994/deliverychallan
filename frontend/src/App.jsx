@@ -360,6 +360,22 @@ export default function App() {
       .finally(() => console.log("--- Frontend Diagnostic End ---"));
   }, []);
 
+  // Restore login state from localStorage on mount so refresh doesn't log out
+  useEffect(() => {
+    try {
+      const loggedIn = localStorage.getItem("isLoggedIn");
+      if (loggedIn === "true") {
+        setIsLoggedIn(true);
+        setUserRole(localStorage.getItem("userRole") || "User");
+        const email = localStorage.getItem("userEmail") || "";
+        setLoggedInUserEmail(email);
+        setLoginTime(localStorage.getItem("loginTime") || new Date().toLocaleString());
+      }
+    } catch (e) {
+      console.warn("Failed to restore auth state:", e);
+    }
+  }, []);
+
   useEffect(() => {
     // Only load data if logged in
     if (isLoggedIn) {
@@ -899,6 +915,16 @@ export default function App() {
         body: JSON.stringify({ email: authEmail, password: authPassword }),
       });
 
+      // Persist auth in localStorage so refresh keeps user logged in
+      try {
+        localStorage.setItem("isLoggedIn", "true");
+        localStorage.setItem("userRole", data.role || "User");
+        localStorage.setItem("userEmail", authEmail);
+        localStorage.setItem("loginTime", new Date().toLocaleString());
+      } catch (e) {
+        console.warn("Failed to persist auth to localStorage:", e);
+      }
+
       setIsLoggedIn(true);
       setUserRole(data.role || "User");
       setLoggedInUserEmail(authEmail);
@@ -915,6 +941,14 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    try {
+      localStorage.removeItem("isLoggedIn");
+      localStorage.removeItem("userRole");
+      localStorage.removeItem("userEmail");
+      localStorage.removeItem("loginTime");
+    } catch (e) {
+      console.warn("Failed to clear localStorage on logout:", e);
+    }
     setIsLoggedIn(false);
     setUserRole("User");
     setLoggedInUserEmail("");
