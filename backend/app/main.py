@@ -1557,7 +1557,7 @@ def download_challan_pdf(challan_id: str) -> Response:
             
 
     pdf_bytes = build_challan_pdf(challan)
-    challan_number = challan.get("challan_number", challan_id)
+    challan_number = challan.get("challan_number","customer_name", challan_id)
     headers = {"Content-Disposition": f'attachment; filename="challan_{challan_number}.pdf"'}
     return Response(content=pdf_bytes, media_type="application/pdf", headers=headers)
 
