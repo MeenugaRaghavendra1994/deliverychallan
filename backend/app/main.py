@@ -445,7 +445,7 @@ def health():
 
 
 @router.get("/plants", response_model=List[PlantOut])
-def read_plants(search: Optional[str] = None, limit: int = 10) -> List[Dict[str, Any]]:
+def read_plants(search: Optional[str] = None, limit: int = 1000) -> List[Dict[str, Any]]:
     client = get_supabase_client()
     logger.debug(f"read_plants called. search={search!r}, limit={limit}, client_initialized={bool(client)}")
     # If we have a Supabase client, prefer DB-backed lookup but be defensive
@@ -821,7 +821,7 @@ async def bulk_upload_products(file: UploadFile = File(...)):
 
 
 @router.get("/challans", response_model=List[ChallanOut])
-def read_challans(search: Optional[str] = None, limit: int = 10) -> List[Dict[str, Any]]:
+def read_challans(search: Optional[str] = None, limit: int = 100000) -> List[Dict[str, Any]]:
     """Return latest `limit` challans by default. If `search` is provided, search entire table (no limit)."""
     client = get_supabase_client()
     if client:
