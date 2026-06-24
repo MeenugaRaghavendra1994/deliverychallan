@@ -366,7 +366,7 @@ export default function App() {
       const loggedIn = localStorage.getItem("isLoggedIn");
       if (loggedIn === "true") {
         setIsLoggedIn(true);
-        setUserRole(localStorage.getItem("userRole") || "User");
+        setUserRole(localStorage.getItem("userRole", data.role));
         const email = localStorage.getItem("userEmail") || "";
         setLoggedInUserEmail(email);
         setLoginTime(localStorage.getItem("loginTime") || new Date().toLocaleString());
