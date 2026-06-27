@@ -19,6 +19,7 @@ from reportlab.graphics.shapes import Drawing, Path, Line, String, Group
 from reportlab.lib.colors import HexColor
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
+from reportlab.platypus import Paragraph
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
@@ -53,7 +54,15 @@ app.add_middleware(
 def root():
     return {"message": "API Running at root"}
 
-
+# 1. Set up a paragraph style for your table cells
+styles = getSampleStyleSheet()
+cell_text_style = ParagraphStyle(
+    'TableCellStyle',
+    parent=styles['Normal'],
+    fontName='Helvetica',
+    fontSize=10,
+    leading=12 # Adjust leading (line spacing) to match font size
+)
 # --- User Models ---
 class UserCreate(BaseModel):
     email: EmailStr
@@ -1636,6 +1645,7 @@ def build_challan_pdf(challan: Dict[str, Any]) -> bytes:
     story.append(create_sspl_logo())
     story.append(Spacer(1, 5 * mm))
     
+    
     # Header
     story.append(Paragraph("DELIVERY CHALLAN", header_style))
     story.append(Paragraph("STOCK TRANSFER NOTE", ParagraphStyle("Note", fontSize=11, leading=13, alignment=1, fontName="Helvetica-Bold", spaceAfter=10)))
@@ -1687,6 +1697,11 @@ def build_challan_pdf(challan: Dict[str, Any]) -> bytes:
     for idx, item in enumerate(challan.get("items", []), 1):
         qty = item.get("quantity", 0)
         total_qty += qty
+        
+        product_name_text = item.get("product_name","")
+        product_name_paragraph = Paragraph(product_name_text,cell_text_style)
+        
+        
         item_rows.append([
             str(idx),
             item.get("product_code", ""),
