@@ -1566,8 +1566,6 @@ def download_challan_pdf(challan_id: str) -> Response:
     file_name= f"{safe_sender_name}_{challan_number}_{safe_customer_name}.pdf"
     
     headers = {"Content-Disposition": f'attachment;filename={file_name}"'}
-     
-    headers = {"Content-Disposition": f'attachment; filename="{sender_name,challan_number,customer_name}.pdf"'}
     return Response(content=pdf_bytes, media_type="application/pdf", headers=headers)
 
 def create_sspl_logo():
