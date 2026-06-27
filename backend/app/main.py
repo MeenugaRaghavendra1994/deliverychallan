@@ -1705,7 +1705,7 @@ def build_challan_pdf(challan: Dict[str, Any]) -> bytes:
         item_rows.append([
             str(idx),
             item.get("product_code", ""),
-            item.get("product_name", ""),
+            product_name_paragraph,
             item.get("unit", "Nos"),
             str(qty),
             str(item.get("rate", 0)),
