@@ -1560,6 +1560,12 @@ def download_challan_pdf(challan_id: str) -> Response:
     challan_number = challan.get("challan_number", challan_id)
     customer_name =  challan.get("customer_name", challan_id)
     sender_name = challan.get("from_plant_name", challan_id)
+    
+    safe_customer_name = str(customer_name).replace("\xa0", " ").strip()
+    safe_sender_name = str(sender_name).replace("\xa0", " ").strip()
+    file_name= f"{safe_sender_name}_{challan_number}_{safe_customer_name}.pdf"
+    
+    headers = {"Content-Disposition": f'attachment;filename={file_name}"'}
      
     headers = {"Content-Disposition": f'attachment; filename="{sender_name,challan_number,customer_name}.pdf"'}
     return Response(content=pdf_bytes, media_type="application/pdf", headers=headers)
